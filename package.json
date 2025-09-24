@@ -1,0 +1,65 @@
+{
+  "name": "@youdotcom-oss/mcp",
+  "version": "1.1.4",
+  "description": "You.com API Model Context Protocol Server",
+  "type": "module",
+  "bin": "bin/stdio",
+  "scripts": {
+    "build": "bun build ./src/stdio.ts --outdir ./dist --target=node",
+    "dev": "bun src/stdio.ts",
+    "inspect": "bunx @modelcontextprotocol/inspector -e YDC_API_KEY=$YDC_API_KEY bun dev",
+    "start": "bun run bin/http",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage",
+    "test:coverage:watch": "bun test --coverage --watch",
+    "check": "biome check",
+    "check:write": "biome check --write",
+    "prepare": "git config core.hooksPath .hooks"
+  },
+  "keywords": [
+    "mcp",
+    "web search",
+    "model context protocol"
+  ],
+  "author": "You.com (https://you.com)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/youdotcom-oss/youdotcom-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/youdotcom-oss/youdotcom-mcp-server/issues"
+  },
+  "homepage": "https://github.com/youdotcom-oss/youdotcom-mcp-server/tree/main#readme",
+  "files": [
+    "bin/stdio",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18",
+    "bun": ">= 1.2.21"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.4",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@eslint/js": "9.36.0",
+    "@modelcontextprotocol/inspector": "0.16.8",
+    "@types/bun": "latest",
+    "typescript": "5.9.2",
+    "lint-staged": "^16.2.0",
+    "@hono/mcp": "0.1.4",
+    "@modelcontextprotocol/sdk": "1.18.1",
+    "hono": "^4.9.8",
+    "neverthrow": "8.2.0",
+    "zod": "3.25.76"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,json}": [
+      "bunx @biomejs/biome check --write"
+    ]
+  }
+}

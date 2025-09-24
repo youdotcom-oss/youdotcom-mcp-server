@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ydc-search": {
+      "type": "http",
+      "url": "http://localhost:4000/mcp",
+      "headers": {
+        "Authorization": "Bearer <you.com api key>"
+      }
+    }
+  }
+}
