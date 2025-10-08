@@ -140,7 +140,10 @@ export const WebResultSchema = z.object({
     URL of the original thumbnail.
     Example: "https://www.somethumbnailsite.com/thumbnail.jpg"
   `),
-  page_age: z.string().describe(`
+  page_age: z
+    .string()
+    .optional()
+    .describe(`
     The age of the search result.
     Example: "2025-06-25T11:41:00"
   `),
