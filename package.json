@@ -1,13 +1,13 @@
 {
   "name": "@youdotcom-oss/mcp",
-  "version": "1.1.6-experimental-3",
+  "version": "1.1.6",
   "description": "You.com API Model Context Protocol Server",
   "type": "module",
-  "bin": "bin/stdio",
+  "bin": "bin/stdio.js",
   "scripts": {
-    "build": "bun build ./src/stdio.ts --outdir ./dist --target=node",
+    "build": "bun build ./src/stdio.ts --outfile ./bin/stdio.js --target=node",
     "dev": "bun src/stdio.ts",
-    "inspect": "bunx @modelcontextprotocol/inspector -e YDC_API_KEY=$YDC_API_KEY bun dev",
+    "inspect": "bash -c 'source .env 2>/dev/null || true; bunx @modelcontextprotocol/inspector -e YDC_API_KEY=$YDC_API_KEY bun dev'",
     "start": "bun run bin/http",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
@@ -32,8 +32,7 @@
   },
   "homepage": "https://github.com/youdotcom-oss/youdotcom-mcp-server/tree/main#readme",
   "files": [
-    "bin/stdio",
-    "dist"
+    "bin/stdio.js"
   ],
   "publishConfig": {
     "access": "public"

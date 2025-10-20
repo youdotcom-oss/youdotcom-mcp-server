@@ -9,6 +9,7 @@ pnpm-debug.log*
 dist/*
 build/
 *.tsbuildinfo
+bin/stdio.js
 
 # Environment variables
 .env
@@ -66,6 +67,7 @@ temp/
 
 # Optional npm cache directory
 .npm
+.npmrc
 
 # Optional REPL history
 .node_repl_history

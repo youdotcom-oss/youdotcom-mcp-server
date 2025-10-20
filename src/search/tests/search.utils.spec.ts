@@ -5,7 +5,7 @@ import { fetchSearchResults, formatSearchResults } from '../search.utils';
 describe('fetchSearchResults', () => {
   test('returns valid response structure for basic query', async () => {
     const result = await fetchSearchResults({
-      searchQuery: { query: 'latest stock news', count: 5 },
+      searchQuery: { query: 'latest stock news' },
     });
 
     expect(result).toHaveProperty('results');
