@@ -1,9 +1,13 @@
 import {
+  checkResponseForErrors,
+  formatSearchResultsText,
+  setUserAgent,
+} from '../shared/shared.utils';
+import {
   type NewsResult,
   type SearchQuery,
   type SearchResponse,
   SearchResponseSchema,
-  type WebResult,
 } from './search.schemas';
 
 export const fetchSearchResults = async ({
@@ -17,9 +21,11 @@ export const fetchSearchResults = async ({
     excludeTerms,
     ...rest
   },
+  getClientVersion,
 }: {
   searchQuery: SearchQuery;
   YDC_API_KEY?: string;
+  getClientVersion: () => string;
 }) => {
   const url = new URL('https://api.ydc-index.io/v1/search');
 
@@ -62,6 +68,7 @@ export const fetchSearchResults = async ({
     method: 'GET',
     headers: new Headers({
       'X-API-Key': YDC_API_KEY || '',
+      'User-Agent': setUserAgent(getClientVersion()),
     }),
   };
 
@@ -81,6 +88,9 @@ export const fetchSearchResults = async ({
 
   const results = await response.json();
 
+  // Check for error field in 200 responses (e.g., API limit errors)
+  checkResponseForErrors(results);
+
   const parsedResults = SearchResponseSchema.parse(results);
 
   return parsedResults;
@@ -89,17 +99,9 @@ export const fetchSearchResults = async ({
 export const formatSearchResults = (response: SearchResponse) => {
   let formattedResults = '';
 
-  // Format web results
+  // Format web results using shared utility
   if (response.results.web?.length) {
-    const webResults = response.results.web
-      .map(
-        (hit: WebResult) =>
-          `Title: ${hit.title}\nURL: ${hit.url}\nDescription: ${
-            hit.description
-          }\nSnippets:\n- ${hit.snippets.join('\n- ')}`,
-      )
-      .join('\n\n---\n\n');
-
+    const webResults = formatSearchResultsText(response.results.web);
     formattedResults += `WEB RESULTS:\n\n${webResults}`;
   }
 

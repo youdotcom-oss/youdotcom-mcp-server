@@ -2,10 +2,13 @@ import { describe, expect, test } from 'bun:test';
 import type { SearchResponse } from '../search.schemas';
 import { fetchSearchResults, formatSearchResults } from '../search.utils';
 
+const getClientVersion = () => 'MCP/test (You.com; test-client)';
+
 describe('fetchSearchResults', () => {
   test('returns valid response structure for basic query', async () => {
     const result = await fetchSearchResults({
       searchQuery: { query: 'latest stock news' },
+      getClientVersion,
     });
 
     expect(result).toHaveProperty('results');
@@ -32,6 +35,7 @@ describe('fetchSearchResults', () => {
         freshness: 'week',
         country: 'US',
       },
+      getClientVersion,
     });
 
     expect(result.results.web?.length).toBeLessThanOrEqual(3);
@@ -42,7 +46,8 @@ describe('fetchSearchResults', () => {
 
   test('validates response schema', async () => {
     const result = await fetchSearchResults({
-      searchQuery: { query: 'latest technolofy news' },
+      searchQuery: { query: 'latest technology news' },
+      getClientVersion,
     });
 
     // Test that web results have required properties

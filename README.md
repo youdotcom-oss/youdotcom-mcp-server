@@ -34,6 +34,115 @@ This server can be integrated with MCP clients in two ways:
 }
 ```
 
+### you-express
+
+Fast AI-powered agent for quick responses with optional real-time web search integration.
+
+**Parameters:**
+- `input` (string, required): The query or instruction to send to the Express agent. Example: "What is the capital of France?"
+- `tools` (array, optional): Array of tool objects to expand the agent's capabilities. Currently supports:
+  - `{ type: "web_search" }` - Enables real-time web search to provide more accurate and up-to-date information
+
+**Features:**
+- Fast response times optimized for straightforward queries
+- Optional web search integration for real-time information
+- AI-synthesized answers with source citations (when web_search is enabled)
+- Progress notifications support (when client provides `progressToken` in request metadata)
+- Non-streaming JSON responses for reliability
+
+**Response Structure:**
+
+The tool returns a token-efficient MCP response format:
+- `answer` (string, required): AI-synthesized answer from the Express agent
+- `results` (object, optional): Web search results included when `web_search` tool is used
+  - `web` (array): Array of search result objects, each containing:
+    - `url` (string): The URL of the search result
+    - `title` (string): The title of the search result
+    - `snippet` (string): A text snippet from the search result
+- `agent` (string, optional): Agent identifier (e.g., "express")
+
+**Example 1: Simple query without web_search**
+
+Input:
+```json
+{
+  "input": "What is 2 + 2?"
+}
+```
+
+Response:
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Express Agent Answer:\n\n2 + 2 equals 4."
+    }
+  ],
+  "structuredContent": {
+    "answer": "2 + 2 equals 4.",
+    "agent": "express"
+  }
+}
+```
+
+**Example 2: Query with web_search enabled**
+
+Input:
+```json
+{
+  "input": "What is the capital of France?",
+  "tools": [{ "type": "web_search" }]
+}
+```
+
+Response:
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Express Agent Answer:\n\nThe capital of France is Paris, the country's largest city and its political, economic, and cultural center..."
+    },
+    {
+      "type": "text",
+      "text": "\nSearch Results:\n\nTitle: Paris - Wikipedia\nURL: https://en.wikipedia.org/wiki/Paris\nSnippet: Paris is the capital and most populous city of France. With an official estimated population of 2,102,650 residents...\n\nTitle: Paris | History, Map, Population, & Facts | Britannica\nURL: https://www.britannica.com/place/Paris\nSnippet: Paris, city and capital of France, situated in the north-central part of the country..."
+    }
+  ],
+  "structuredContent": {
+    "answer": "The capital of France is Paris, the country's largest city and its political, economic, and cultural center...",
+    "results": {
+      "web": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Paris",
+          "title": "Paris - Wikipedia",
+          "snippet": "Paris is the capital and most populous city of France. With an official estimated population of 2,102,650 residents..."
+        },
+        {
+          "url": "https://www.britannica.com/place/Paris",
+          "title": "Paris | History, Map, Population, & Facts | Britannica",
+          "snippet": "Paris, city and capital of France, situated in the north-central part of the country..."
+        }
+      ]
+    },
+    "agent": "express"
+  }
+}
+```
+
+**Progress Notifications:**
+
+When a client provides a `progressToken` in the request metadata, the tool sends progress notifications at key milestones:
+- 0% - Starting Express agent query
+- 33% - Connecting to You.com API
+- 100% - Complete (implicit with final response)
+
+**Notes:**
+- The `content` array always displays the answer first, followed by search results (if web_search was used)
+- The response format is optimized for token efficiency, returning only essential fields
+- Search results are formatted consistently with the `you-search` tool using shared formatting utilities
+```
+
 **Local NPM Package:**
 ```json
 {
@@ -364,7 +473,7 @@ echo "export YDC_API_KEY=<you-api-key>" > .env
 
 ```bash
 # Build is optional for development, required for production bin executables
-bun run build  # Builds only stdio.ts to dist/stdio.js
+bun run build  # Builds only stdio.ts to bin/stdio.js
 ```
 
 **For MCP Client Integration:**
@@ -392,7 +501,7 @@ Use the full path to your local server installation in your `.mcp.json`:
     "ydc-search": {
       "type": "stdio",
       "command": "node",
-      "args": ["/full/path/to/you-mcp-server/bin/stdio"],
+      "args": ["/full/path/to/you-mcp-server/bin/stdio.js"],
       "env": {
         "YDC_API_KEY": "<you-api-key>"
       }
@@ -425,15 +534,20 @@ export YDC_API_KEY="your-api-key-here"
 ### Available Scripts
 
 - `bun run dev` - Start server in stdio mode for development
-- `bun run build` - Build stdio.ts to dist/ for production
+- `bun run build` - Build stdio.ts to bin/ for production
 - `bun start` - Start HTTP server on port 4000 (or PORT env var)
 - `bun run test` - Run test suite
+- `bun run test:coverage` - Run tests with coverage report
+- `bun run test:coverage:watch` - Run tests with coverage in watch mode
 - `bun run check` - Run Biome linting and formatting checks
+- `bun run check:write` - Auto-fix linting and formatting issues
+- `bun run inspect` - Start MCP inspector with environment variables loaded
+- `bun run prepare` - Set up git hooks for the repository
 
 ### Executable Scripts
 
 The project includes executable scripts in `bin/`:
-- `./bin/stdio` - Stdio transport server (requires `bun run build` first)
+- `./bin/stdio.js` - Stdio transport server (requires `bun run build` first)
 - `./bin/http` - HTTP transport server (runs directly from source)
 
 ### Running the Server
@@ -447,7 +561,7 @@ bun src/stdio.ts
 
 # Production mode (built distribution)
 bun run build  # Build first
-./bin/stdio    # Run built version
+./bin/stdio.js # Run built version
 ```
 
 **HTTP Mode** - For web applications and remote clients:
@@ -540,6 +654,8 @@ To use this MCP server with Claude Code via Docker:
    - Health check endpoint: `http://localhost:4000/mcp-health`
 
 ## API Reference
+
+This MCP server provides two tools for different AI-powered workflows:
 
 ### you-search
 

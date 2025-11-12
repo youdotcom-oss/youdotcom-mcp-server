@@ -2,8 +2,10 @@ import { StreamableHTTPTransport } from '@hono/mcp';
 import { type Context, Hono } from 'hono';
 import { trimTrailingSlash } from 'hono/trailing-slash';
 import packageJson from '../package.json' with { type: 'json' };
+import { registerExpressTool } from './express/register-express-tool.js';
 import { getMCpServer } from './get-mcp-server.js';
 import { registerSearchTool } from './search/register-search-tool.js';
+import { useGetClientVersion } from './shared/shared.utils.js';
 
 const extractBearerToken = (authHeader: string | null): string | null => {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -21,18 +23,25 @@ const handleMcpRequest = async (c: Context) => {
     return c.text('Unauthorized: Authorization header required');
   }
 
-  const token = extractBearerToken(authHeader);
+  const YDC_API_KEY = extractBearerToken(authHeader);
 
-  if (!token) {
+  if (!YDC_API_KEY) {
     c.status(401);
     c.header('Content-Type', 'text/plain');
     return c.text('Unauthorized: Bearer token required');
   }
-  const mcpServer = getMCpServer();
-  registerSearchTool(mcpServer, token);
+  const mcp = getMCpServer();
+  const getClientVersion = useGetClientVersion(mcp);
+
+  registerSearchTool({
+    mcp,
+    YDC_API_KEY,
+    getClientVersion,
+  });
+  registerExpressTool({ mcp, YDC_API_KEY, getClientVersion });
 
   const transport = new StreamableHTTPTransport();
-  await mcpServer.connect(transport);
+  await mcp.connect(transport);
   return transport.handleRequest(c);
 };
 

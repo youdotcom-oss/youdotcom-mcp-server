@@ -10,6 +10,7 @@ dist/*
 build/
 *.tsbuildinfo
 bin/stdio.js
+bin/http.js
 
 # Environment variables
 .env
@@ -95,3 +96,6 @@ config/secrets.json
 # Claude
 .claude/settings.local.json
 .mcp.json
+
+# OSS repository sync working directory
+oss-repo/

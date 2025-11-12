@@ -1,9 +1,18 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { getLogger } from '../shared/shared.utils';
 import { SearchQuerySchema, SearchResponseSchema } from './search.schemas';
 import { fetchSearchResults, formatSearchResults } from './search.utils';
 
-export const registerSearchTool = (server: McpServer, YDC_API_KEY?: string) => {
-  server.registerTool(
+export const registerSearchTool = ({
+  mcp,
+  YDC_API_KEY,
+  getClientVersion,
+}: {
+  mcp: McpServer;
+  YDC_API_KEY?: string;
+  getClientVersion: () => string;
+}) => {
+  mcp.registerTool(
     'you-search',
     {
       title: 'You.com Search',
@@ -13,17 +22,19 @@ export const registerSearchTool = (server: McpServer, YDC_API_KEY?: string) => {
       outputSchema: SearchResponseSchema.shape,
     },
     async (searchQuery) => {
+      const logger = getLogger(mcp);
       try {
         const response = await fetchSearchResults({
           searchQuery,
           YDC_API_KEY,
+          getClientVersion,
         });
 
         const webCount = response.results.web?.length ?? 0;
         const newsCount = response.results.news?.length ?? 0;
 
         if (!webCount && !newsCount) {
-          await server.server.sendLoggingMessage({
+          await logger({
             level: 'info',
             data: `No results found for query: "${searchQuery.query}"`,
           });
@@ -34,7 +45,7 @@ export const registerSearchTool = (server: McpServer, YDC_API_KEY?: string) => {
           };
         }
 
-        await server.server.sendLoggingMessage({
+        await logger({
           level: 'info',
           data: `Search successful for query: "${searchQuery.query}" - ${webCount} web results, ${newsCount} news results (${webCount + newsCount} total)`,
         });
@@ -43,7 +54,7 @@ export const registerSearchTool = (server: McpServer, YDC_API_KEY?: string) => {
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : String(err);
 
-        await server.server.sendLoggingMessage({
+        await logger({
           level: 'error',
           data: `Search API call failed: ${errorMessage}`,
         });

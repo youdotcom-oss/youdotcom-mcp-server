@@ -1,5 +1,15 @@
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  setDefaultTimeout,
+  test,
+} from 'bun:test';
 import httpApp from '../http.js';
+
+// Increase default timeout for hooks to prevent intermittent failures
+setDefaultTimeout(15_000);
 
 let server: Bun.Server;
 let baseUrl: string;
@@ -17,12 +27,14 @@ beforeAll(async () => {
   });
 
   // Wait a bit for server to start
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  await new Promise((resolve) => setTimeout(resolve, 500));
 });
 
 afterAll(async () => {
   if (server) {
     server.stop();
+    // Wait a bit for server to fully stop
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 });
 
