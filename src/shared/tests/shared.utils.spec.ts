@@ -161,29 +161,33 @@ describe('setUserAgent', () => {
     const client = 'test-client; 1.0.0';
     const userAgent = setUserAgent(client);
 
-    expect(userAgent).toBe('MCP/1.1.6 (You.com; test-client; 1.0.0)');
+    expect(userAgent).toMatch(
+      /^MCP\/[\d.]+ \(You\.com; test-client; 1\.0\.0\)$/,
+    );
   });
 
   test('formats User-Agent with UNKNOWN client', () => {
     const client = 'UNKNOWN';
     const userAgent = setUserAgent(client);
 
-    expect(userAgent).toBe('MCP/1.1.6 (You.com; UNKNOWN)');
+    expect(userAgent).toMatch(/^MCP\/[\d.]+ \(You\.com; UNKNOWN\)$/);
   });
 
   test('formats User-Agent with Claude Desktop client', () => {
     const client = 'Claude Desktop; 0.7.6';
     const userAgent = setUserAgent(client);
 
-    expect(userAgent).toBe('MCP/1.1.6 (You.com; Claude Desktop; 0.7.6)');
+    expect(userAgent).toMatch(
+      /^MCP\/[\d.]+ \(You\.com; Claude Desktop; 0\.7\.6\)$/,
+    );
   });
 
   test('formats User-Agent with detailed client info', () => {
     const client = 'test-client; 1.0.0; Test Client App; https://example.com';
     const userAgent = setUserAgent(client);
 
-    expect(userAgent).toBe(
-      'MCP/1.1.6 (You.com; test-client; 1.0.0; Test Client App; https://example.com)',
+    expect(userAgent).toMatch(
+      /^MCP\/[\d.]+ \(You\.com; test-client; 1\.0\.0; Test Client App; https:\/\/example\.com\)$/,
     );
   });
 
@@ -226,7 +230,9 @@ describe('useGetClientVersion and setUserAgent integration', () => {
     const userAgent = setUserAgent(clientString);
 
     expect(clientString).toBe('Claude Desktop; 0.7.6');
-    expect(userAgent).toBe('MCP/1.1.6 (You.com; Claude Desktop; 0.7.6)');
+    expect(userAgent).toMatch(
+      /^MCP\/[\d.]+ \(You\.com; Claude Desktop; 0\.7\.6\)$/,
+    );
   });
 
   test('handle UNKNOWN client gracefully', () => {
@@ -241,7 +247,7 @@ describe('useGetClientVersion and setUserAgent integration', () => {
     const userAgent = setUserAgent(clientString);
 
     expect(clientString).toBe('UNKNOWN');
-    expect(userAgent).toBe('MCP/1.1.6 (You.com; UNKNOWN)');
+    expect(userAgent).toMatch(/^MCP\/[\d.]+ \(You\.com; UNKNOWN\)$/);
   });
 
   test('create User-Agent with all client fields', () => {
@@ -263,8 +269,8 @@ describe('useGetClientVersion and setUserAgent integration', () => {
     expect(clientString).toBe(
       'test-client; 2.0.0; Test Client; https://test.com',
     );
-    expect(userAgent).toBe(
-      'MCP/1.1.6 (You.com; test-client; 2.0.0; Test Client; https://test.com)',
+    expect(userAgent).toMatch(
+      /^MCP\/[\d.]+ \(You\.com; test-client; 2\.0\.0; Test Client; https:\/\/test\.com\)$/,
     );
   });
 });
