@@ -1,4 +1,3 @@
-import { compress } from '@hono/bun-compress';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { type Context, Hono } from 'hono';
 import { trimTrailingSlash } from 'hono/trailing-slash';
@@ -43,11 +42,17 @@ const handleMcpRequest = async (c: Context) => {
 
   const transport = new StreamableHTTPTransport();
   await mcp.connect(transport);
-  return transport.handleRequest(c);
+  const response = await transport.handleRequest(c);
+
+  // Explicitly set Content-Encoding to 'identity' to prevent httpx auto-decompression issues
+  // httpx by default sends Accept-Encoding and attempts decompression, but MCP SSE streams
+  // are not compressed. Setting 'identity' tells clients the response is uncompressed.
+  response?.headers.set('Content-Encoding', 'identity');
+
+  return response;
 };
 
 const app = new Hono();
-app.use(compress());
 app.use(trimTrailingSlash());
 
 app.get('/mcp-health', async (c) => {
