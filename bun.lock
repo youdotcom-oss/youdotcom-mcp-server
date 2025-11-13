@@ -8,6 +8,7 @@
         "@commitlint/cli": "^20.1.0",
         "@commitlint/config-conventional": "^20.0.0",
         "@eslint/js": "9.38.0",
+        "@hono/bun-compress": "0.1.0",
         "@hono/mcp": "0.1.5",
         "@modelcontextprotocol/inspector": "0.17.2",
         "@modelcontextprotocol/sdk": "1.20.2",
@@ -88,6 +89,8 @@
     "@floating-ui/react-dom": ["@floating-ui/react-dom@2.1.6", "", { "dependencies": { "@floating-ui/dom": "^1.7.4" }, "peerDependencies": { "react": ">=16.8.0", "react-dom": ">=16.8.0" } }, "sha512-4JX6rEatQEvlmgU80wZyq9RT96HZJa88q8hp0pBd+LrczeDI4o6uA2M+uvxngVHo4Ihr8uibXxH6+70zhAFrVw=="],
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.10", "", {}, "sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ=="],
+
+    "@hono/bun-compress": ["@hono/bun-compress@0.1.0", "", { "peerDependencies": { "hono": "*" } }, "sha512-wxy9PdC07Yc81NawIcdIiuGAEeDujwPWd01KdxubXJ33G9vdjUO85ec0UMjH0Cy7+zfNXlcWgJ+zoATjT/IfTg=="],
 
     "@hono/mcp": ["@hono/mcp@0.1.5", "", { "peerDependencies": { "@modelcontextprotocol/sdk": "^1.12.0", "hono": ">=4.0.0" } }, "sha512-q6Yurx9VUwVEpqnwVXtzIYaq4kgQgWWq9lYLM7NFS2W0sg1RzL+RdKh6jO4/dGyvBLKrahPd2v+NC6rr0XWBvQ=="],
 
