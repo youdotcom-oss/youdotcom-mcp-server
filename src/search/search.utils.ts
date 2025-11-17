@@ -27,7 +27,7 @@ export const fetchSearchResults = async ({
   YDC_API_KEY?: string;
   getClientVersion: () => string;
 }) => {
-  const url = new URL('https://api.ydc-index.io/v1/search');
+  const url = new URL('https://ydc-index.io/v1/search');
 
   const searchParams = new URLSearchParams();
 
