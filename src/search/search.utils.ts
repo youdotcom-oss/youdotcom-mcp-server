@@ -1,31 +1,14 @@
-import {
-  checkResponseForErrors,
-  formatSearchResultsText,
-  setUserAgent,
-} from '../shared/shared.utils';
-import {
-  type NewsResult,
-  type SearchQuery,
-  type SearchResponse,
-  SearchResponseSchema,
-} from './search.schemas';
+import { checkResponseForErrors, formatSearchResultsText } from '../shared/shared.utils.ts';
+import { type NewsResult, type SearchQuery, type SearchResponse, SearchResponseSchema } from './search.schemas.ts';
 
 export const fetchSearchResults = async ({
   YDC_API_KEY = process.env.YDC_API_KEY,
-  searchQuery: {
-    query,
-    site,
-    fileType,
-    language,
-    exactTerms,
-    excludeTerms,
-    ...rest
-  },
-  getClientVersion,
+  searchQuery: { query, site, fileType, language, exactTerms, excludeTerms, ...rest },
+  getUserAgent,
 }: {
   searchQuery: SearchQuery;
   YDC_API_KEY?: string;
-  getClientVersion: () => string;
+  getUserAgent: () => string;
 }) => {
   const url = new URL('https://ydc-index.io/v1/search');
 
@@ -37,9 +20,7 @@ export const fetchSearchResults = async ({
   fileType && searchQuery.push(`fileType:${fileType}`);
   language && searchQuery.push(`lang:${language}`);
   if (exactTerms && excludeTerms) {
-    throw new Error(
-      'Cannot specify both exactTerms and excludeTerms - please use only one',
-    );
+    throw new Error('Cannot specify both exactTerms and excludeTerms - please use only one');
   }
   exactTerms &&
     searchQuery.push(
@@ -68,7 +49,7 @@ export const fetchSearchResults = async ({
     method: 'GET',
     headers: new Headers({
       'X-API-Key': YDC_API_KEY || '',
-      'User-Agent': setUserAgent(getClientVersion()),
+      'User-Agent': getUserAgent(),
     }),
   };
 
@@ -99,18 +80,18 @@ export const fetchSearchResults = async ({
 export const formatSearchResults = (response: SearchResponse) => {
   let formattedResults = '';
 
-  // Format web results using shared utility
+  // Format web results using shared utility (without URLs in text)
   if (response.results.web?.length) {
     const webResults = formatSearchResultsText(response.results.web);
     formattedResults += `WEB RESULTS:\n\n${webResults}`;
   }
 
-  // Format news results
+  // Format news results (without URLs in text)
   if (response.results.news?.length) {
     const newsResults = response.results.news
       .map(
         (article: NewsResult) =>
-          `Title: ${article.title}\nURL: ${article.url}\nDescription: ${article.description}\nPublished: ${article.page_age}`,
+          `Title: ${article.title}\nDescription: ${article.description}\nPublished: ${article.page_age}`,
       )
       .join('\n\n---\n\n');
 
@@ -120,6 +101,26 @@ export const formatSearchResults = (response: SearchResponse) => {
     formattedResults += `NEWS RESULTS:\n\n${newsResults}`;
   }
 
+  // Extract URLs and titles for structuredContent
+  const structuredResults: {
+    web?: Array<{ url: string; title: string }>;
+    news?: Array<{ url: string; title: string }>;
+  } = {};
+
+  if (response.results.web?.length) {
+    structuredResults.web = response.results.web.map((result) => ({
+      url: result.url,
+      title: result.title,
+    }));
+  }
+
+  if (response.results.news?.length) {
+    structuredResults.news = response.results.news.map((article) => ({
+      url: article.url,
+      title: article.title,
+    }));
+  }
+
   return {
     content: [
       {
@@ -127,6 +128,14 @@ export const formatSearchResults = (response: SearchResponse) => {
         text: `Search Results for "${response.metadata.query}":\n\n${formattedResults}`,
       },
     ],
-    structuredContent: response,
+    structuredContent: {
+      resultCounts: {
+        web: response.results.web?.length || 0,
+        news: response.results.news?.length || 0,
+        total: (response.results.web?.length || 0) + (response.results.news?.length || 0),
+      },
+      results: Object.keys(structuredResults).length > 0 ? structuredResults : undefined,
+    },
+    fullResponse: response,
   };
 };

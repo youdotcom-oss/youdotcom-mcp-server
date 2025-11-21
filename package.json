@@ -1,28 +1,12 @@
 {
   "name": "@youdotcom-oss/mcp",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "You.com API Model Context Protocol Server",
-  "type": "module",
-  "bin": "bin/stdio.js",
-  "scripts": {
-    "build": "bun build ./src/stdio.ts --outfile ./bin/stdio.js --target=node",
-    "dev": "bun src/stdio.ts",
-    "inspect": "bash -c 'source .env 2>/dev/null || true; bunx @modelcontextprotocol/inspector -e YDC_API_KEY=$YDC_API_KEY bun dev'",
-    "start": "bun run bin/http",
-    "test": "bun test",
-    "test:coverage": "bun test --coverage",
-    "test:coverage:watch": "bun test --coverage --watch",
-    "check": "biome check",
-    "check:write": "biome check --write",
-    "prepare": "git config core.hooksPath .hooks"
-  },
-  "keywords": [
-    "mcp",
-    "web search",
-    "model context protocol"
-  ],
-  "author": "You.com (https://you.com)",
   "license": "MIT",
+  "engines": {
+    "node": ">=18",
+    "bun": ">= 1.2.21"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/youdotcom-oss/youdotcom-mcp-server.git"
@@ -31,34 +15,70 @@
     "url": "https://github.com/youdotcom-oss/youdotcom-mcp-server/issues"
   },
   "homepage": "https://github.com/youdotcom-oss/youdotcom-mcp-server/tree/main#readme",
+  "author": "You.com (https://you.com)",
+  "keywords": [
+    "mcp",
+    "web search",
+    "model context protocol"
+  ],
+  "bin": "bin/stdio.js",
+  "type": "module",
   "files": [
-    "bin/stdio.js"
+    "bin/stdio.js",
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "docs/API.md"
   ],
   "publishConfig": {
     "access": "public"
   },
-  "engines": {
-    "node": ">=18",
-    "bun": ">= 1.2.21"
+  "scripts": {
+    "build": "bun build ./src/stdio.ts --outfile ./bin/stdio.js --target=node",
+    "check": "bun run check:biome && bun run check:types && bun run check:package",
+    "check:biome": "biome check",
+    "check:package": "format-package --check",
+    "check:types": "tsc --noEmit",
+    "check:write": "bun run format && bun run lint:fix && bun run format:package",
+    "dev": "bun src/stdio.ts",
+    "format": "biome format --write",
+    "format:check": "biome format",
+    "format:package": "format-package --write",
+    "inspect": "bash -c 'source .env 2>/dev/null || true; bunx @modelcontextprotocol/inspector -e YDC_API_KEY=$YDC_API_KEY bun dev'",
+    "lint": "biome lint",
+    "lint:fix": "biome lint --write",
+    "prepare": "git config core.hooksPath .hooks",
+    "start": "bun run bin/http",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage",
+    "test:coverage:watch": "bun test --coverage --watch",
+    "test:watch": "bun test --watch"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "biome check --write --no-errors-on-unmatched"
+    ],
+    "*.{json,md}": [
+      "biome format --write --no-errors-on-unmatched"
+    ],
+    "package.json": [
+      "format-package --write"
+    ]
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.2",
+    "@biomejs/biome": "2.3.6",
     "@commitlint/cli": "^20.1.0",
     "@commitlint/config-conventional": "^20.0.0",
-    "@eslint/js": "9.38.0",
+    "@eslint/js": "9.39.1",
     "@modelcontextprotocol/inspector": "0.17.2",
     "@types/bun": "latest",
     "typescript": "5.9.3",
-    "lint-staged": "^16.2.6",
+    "lint-staged": "^16.2.7",
+    "format-package": "^7.0.0",
+    "@hono/bun-compress": "0.1.0",
     "@hono/mcp": "0.1.5",
-    "@modelcontextprotocol/sdk": "1.20.2",
-    "hono": "^4.10.4",
+    "@modelcontextprotocol/sdk": "1.22.0",
+    "hono": "^4.10.6",
     "neverthrow": "8.2.0",
     "zod": "3.25.76"
-  },
-  "lint-staged": {
-    "*.{ts,tsx,json}": [
-      "bunx @biomejs/biome check --write"
-    ]
   }
 }

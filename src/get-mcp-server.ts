@@ -12,6 +12,6 @@ export const getMCpServer = () =>
         logging: {},
         tools: { listChanged: true },
       },
-      instructions: 'Use this server to search the web using You.com.',
+      instructions: `Use this server to search the web, get AI-powered answers with web context, and extract content from web pages using You.com. The you-contents tool extracts page content and returns it in markdown or HTML format. Use HTML format for layout preservation, interactive content, and visual fidelity; use markdown for text extraction and simpler consumption.`,
     },
   );

@@ -1,14 +1,10 @@
-import {
-  checkResponseForErrors,
-  formatSearchResultsText,
-  setUserAgent,
-} from '../shared/shared.utils';
+import { checkResponseForErrors, formatSearchResultsText } from '../shared/shared.utils.ts';
 import {
   type ExpressAgentApiResponse,
   ExpressAgentApiResponseSchema,
   type ExpressAgentInput,
   type ExpressAgentMcpResponse,
-} from './express.schemas';
+} from './express.schemas.ts';
 
 // Express Agent Constants
 const AGENTS_RUN_URL = 'https://api.you.com/v1/agents/runs';
@@ -23,19 +19,14 @@ const agentThrowOnFailedStatus = async (response: Response) => {
     errors?: Array<{ detail?: string }>;
   };
 
-  // Check for error field in 200 responses
-  checkResponseForErrors(errorData);
-
   if (errorCode === 400) {
     throw new Error(`Bad Request:\n${JSON.stringify(errorData)}`);
   } else if (errorCode === 401) {
     throw new Error(
-      `Unauthorized: The Agent APIs require a valid You.com API key with agent access. Note: Agent APIs use Bearer token authentication, while Search API uses X-API-Key. Ensure your YDC_API_KEY has permissions for agent endpoints.`,
+      `Unauthorized: The Agent APIs require a valid You.com API key with agent access. Ensure your YDC_API_KEY has permissions for agent endpoints.`,
     );
   } else if (errorCode === 403) {
-    throw new Error(
-      `Forbidden: You are not allowed to use the requested tool for this agent or tenant`,
-    );
+    throw new Error(`Forbidden: You are not allowed to use the requested tool for this agent or tenant`);
   } else if (errorCode === 429) {
     throw new Error('Rate limited by You.com API. Please try again later.');
   }
@@ -45,20 +36,11 @@ const agentThrowOnFailedStatus = async (response: Response) => {
 export const callExpressAgent = async ({
   YDC_API_KEY = process.env.YDC_API_KEY,
   agentInput: { input, tools },
-  getClientVersion,
-  progressToken,
-  sendProgress,
+  getUserAgent,
 }: {
   agentInput: ExpressAgentInput;
   YDC_API_KEY?: string;
-  getClientVersion: () => string;
-  progressToken?: string | number;
-  sendProgress?: (params: {
-    progressToken: string | number;
-    progress: number;
-    total: number;
-    message: string;
-  }) => Promise<void>;
+  getUserAgent: () => string;
 }) => {
   const requestBody: {
     agent: string;
@@ -76,23 +58,13 @@ export const callExpressAgent = async ({
     requestBody.tools = tools;
   }
 
-  // Progress: Connecting to API (33%)
-  if (progressToken && sendProgress) {
-    await sendProgress({
-      progressToken,
-      progress: 33,
-      total: 100,
-      message: 'Connecting to You.com API...',
-    });
-  }
-
   const options = {
     method: 'POST',
     headers: new Headers({
       Authorization: `Bearer ${YDC_API_KEY || ''}`,
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      'User-Agent': setUserAgent(getClientVersion()),
+      'User-Agent': getUserAgent(),
     }),
     body: JSON.stringify(requestBody),
   };
@@ -110,18 +82,16 @@ export const callExpressAgent = async ({
   checkResponseForErrors(jsonResponse);
 
   // Validate API response schema (full response with all fields)
-  const apiResponse: ExpressAgentApiResponse =
-    ExpressAgentApiResponseSchema.parse(jsonResponse);
+  const apiResponse: ExpressAgentApiResponse = ExpressAgentApiResponseSchema.parse(jsonResponse);
 
   // Find the answer (always present as message.answer, validated by Zod)
-  const answerItem = apiResponse.output.find(
-    (item) => item.type === 'message.answer',
-  )!;
+  const answerItem = apiResponse.output.find((item) => item.type === 'message.answer');
+  if (!answerItem) {
+    throw new Error('Express API response missing required message.answer item');
+  }
 
   // Find search results (optional, present when web_search tool is used)
-  const searchItem = apiResponse.output.find(
-    (item) => item.type === 'web_search.results',
-  );
+  const searchItem = apiResponse.output.find((item) => item.type === 'web_search.results');
 
   // Transform API response to MCP output format (answer + optional search results, token efficient)
   const mcpResponse: ExpressAgentMcpResponse = {
@@ -130,11 +100,7 @@ export const callExpressAgent = async ({
   };
 
   // Transform search results if present
-  if (
-    searchItem &&
-    'content' in searchItem &&
-    Array.isArray(searchItem.content)
-  ) {
+  if (searchItem && 'content' in searchItem && Array.isArray(searchItem.content)) {
     mcpResponse.results = {
       web: searchItem.content.map((item) => ({
         url: item.url || item.citation_uri || '',
@@ -147,9 +113,7 @@ export const callExpressAgent = async ({
   return mcpResponse;
 };
 
-export const formatExpressAgentResponse = (
-  response: ExpressAgentMcpResponse,
-) => {
+export const formatExpressAgentResponse = (response: ExpressAgentMcpResponse) => {
   const _agentId = response.agent || 'express';
   const content: Array<{ type: 'text'; text: string }> = [];
 
@@ -159,7 +123,7 @@ export const formatExpressAgentResponse = (
     text: `Express Agent Answer:\n\n${response.answer}`,
   });
 
-  // 2. Search results second (if present when web_search tool was used)
+  // 2. Search results second (if present when web_search tool was used) - without URLs in text
   if (response.results?.web?.length) {
     const formattedResults = formatSearchResultsText(response.results.web);
     content.push({
@@ -168,8 +132,25 @@ export const formatExpressAgentResponse = (
     });
   }
 
+  // Extract URLs and titles for structuredContent
+  const structuredResults = response.results?.web?.length
+    ? {
+        web: response.results.web.map((result) => ({
+          url: result.url,
+          title: result.title,
+        })),
+      }
+    : undefined;
+
   return {
     content,
-    structuredContent: response,
+    structuredContent: {
+      answer: response.answer,
+      hasResults: !!response.results?.web?.length,
+      resultCount: response.results?.web?.length || 0,
+      agent: response.agent,
+      results: structuredResults,
+    },
+    fullResponse: response,
   };
 };

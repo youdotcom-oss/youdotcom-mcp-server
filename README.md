@@ -1,23 +1,86 @@
 # You.com MCP Server
 
-A Model Context Protocol (MCP) server that provides web search functionality using the You.com Search API. Built with Bun runtime for optimal performance and supports multiple transport protocols for compatibility with different MCP clients.
+A Model Context Protocol (MCP) server that provides web search, AI-powered answers, and content extraction using You.com APIs. Built with Bun runtime for optimal performance and supports multiple transport protocols for compatibility with different MCP clients.
 
 ## Features
 
 - **Web and News Search**: Comprehensive search using You.com's unified Search API with advanced search operators
+- **AI-Powered Express Agent**: Fast responses with optional real-time web search integration
+- **Content Extraction**: Extract and retrieve full content from web pages in markdown or HTML format
 - **Multiple Transport Protocols**: Stdio and Streamable HTTP support
 - **Bearer Token Authentication**: Secure API access in HTTP mode
 - **TypeScript Support**: Full type safety with Zod schemas
 - **Advanced Search Parameters**: Site filtering, file type filtering, language filtering, exact terms, and exclude terms
 
+## Getting Started
+
+Get up and running with the You.com MCP Server in 4 quick steps:
+
+### 1. Get Your API Key
+
+Visit [you.com/platform/api-keys](https://you.com/platform/api-keys) to get your You.com API key. Keep this key secure - you'll need it for configuration.
+
+### 2. Choose Your Setup
+
+**Remote Server (Recommended)** - No installation, always up-to-date, just add the URL and API key
+- Use `https://api.you.com/mcp` with HTTP transport
+- Authentication via `Authorization: Bearer <your-key>` header
+
+**NPM Package** - Runs locally on your machine
+- Use `npx @youdotcom-oss/mcp` with stdio transport
+- Authentication via `YDC_API_KEY` environment variable
+- Requires Bun or Node.js
+
+### 3. Configure Your Client
+
+Choose your MCP client from the [detailed setup guides](#adding-to-your-mcp-client) below. Most clients use this basic structure:
+
+**Remote Server:**
+```json
+{
+  "mcpServers": {
+    "ydc-search": {
+      "type": "http",
+      "url": "https://api.you.com/mcp",
+      "headers": { "Authorization": "Bearer <you-api-key>" }
+    }
+  }
+}
+```
+
+**NPM Package:**
+```json
+{
+  "mcpServers": {
+    "ydc-search": {
+      "command": "npx",
+      "args": ["@youdotcom-oss/mcp"],
+      "env": { "YDC_API_KEY": "<you-api-key>" }
+    }
+  }
+}
+```
+
+### 4. Test Your Setup
+
+Ask your AI agent a simple query to verify everything works:
+- "Search the web for the latest news about artificial intelligence"
+- "What is the capital of France?" (with web search)
+- "Extract the content from https://example.com"
+
+Your agent will automatically use the appropriate tool based on your natural language request.
+
 ## Adding to your MCP client
 
-This server can be integrated with MCP clients in two ways:
-
-- **Option 1: Remote Server (Recommended)** - No installation required, uses hosted server at `https://api.you.com/mcp` with HTTP transport and API key authentication
-- **Option 2: Local NPM Package** - Install via `npx @youdotcom-oss/mcp` with stdio transport, environment variable authentication, and runs locally on your machine
+Detailed configuration instructions for specific MCP clients. See [Getting Started](#getting-started) above for a quick overview.
 
 ### Standard Configuration Templates
+
+**Configuration Notes:**
+- Remote server recommended for most users (no installation, always up-to-date)
+- NPM package for local usage or self-hosting scenarios
+- HTTP transport for remote connections; stdio transport for local packages
+- API key always required (header for HTTP, environment variable for stdio)
 
 **Remote Server (Recommended):**
 ```json
@@ -32,115 +95,6 @@ This server can be integrated with MCP clients in two ways:
     }
   }
 }
-```
-
-### you-express
-
-Fast AI-powered agent for quick responses with optional real-time web search integration.
-
-**Parameters:**
-- `input` (string, required): The query or instruction to send to the Express agent. Example: "What is the capital of France?"
-- `tools` (array, optional): Array of tool objects to expand the agent's capabilities. Currently supports:
-  - `{ type: "web_search" }` - Enables real-time web search to provide more accurate and up-to-date information
-
-**Features:**
-- Fast response times optimized for straightforward queries
-- Optional web search integration for real-time information
-- AI-synthesized answers with source citations (when web_search is enabled)
-- Progress notifications support (when client provides `progressToken` in request metadata)
-- Non-streaming JSON responses for reliability
-
-**Response Structure:**
-
-The tool returns a token-efficient MCP response format:
-- `answer` (string, required): AI-synthesized answer from the Express agent
-- `results` (object, optional): Web search results included when `web_search` tool is used
-  - `web` (array): Array of search result objects, each containing:
-    - `url` (string): The URL of the search result
-    - `title` (string): The title of the search result
-    - `snippet` (string): A text snippet from the search result
-- `agent` (string, optional): Agent identifier (e.g., "express")
-
-**Example 1: Simple query without web_search**
-
-Input:
-```json
-{
-  "input": "What is 2 + 2?"
-}
-```
-
-Response:
-```json
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "Express Agent Answer:\n\n2 + 2 equals 4."
-    }
-  ],
-  "structuredContent": {
-    "answer": "2 + 2 equals 4.",
-    "agent": "express"
-  }
-}
-```
-
-**Example 2: Query with web_search enabled**
-
-Input:
-```json
-{
-  "input": "What is the capital of France?",
-  "tools": [{ "type": "web_search" }]
-}
-```
-
-Response:
-```json
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "Express Agent Answer:\n\nThe capital of France is Paris, the country's largest city and its political, economic, and cultural center..."
-    },
-    {
-      "type": "text",
-      "text": "\nSearch Results:\n\nTitle: Paris - Wikipedia\nURL: https://en.wikipedia.org/wiki/Paris\nSnippet: Paris is the capital and most populous city of France. With an official estimated population of 2,102,650 residents...\n\nTitle: Paris | History, Map, Population, & Facts | Britannica\nURL: https://www.britannica.com/place/Paris\nSnippet: Paris, city and capital of France, situated in the north-central part of the country..."
-    }
-  ],
-  "structuredContent": {
-    "answer": "The capital of France is Paris, the country's largest city and its political, economic, and cultural center...",
-    "results": {
-      "web": [
-        {
-          "url": "https://en.wikipedia.org/wiki/Paris",
-          "title": "Paris - Wikipedia",
-          "snippet": "Paris is the capital and most populous city of France. With an official estimated population of 2,102,650 residents..."
-        },
-        {
-          "url": "https://www.britannica.com/place/Paris",
-          "title": "Paris | History, Map, Population, & Facts | Britannica",
-          "snippet": "Paris, city and capital of France, situated in the north-central part of the country..."
-        }
-      ]
-    },
-    "agent": "express"
-  }
-}
-```
-
-**Progress Notifications:**
-
-When a client provides a `progressToken` in the request metadata, the tool sends progress notifications at key milestones:
-- 0% - Starting Express agent query
-- 33% - Connecting to You.com API
-- 100% - Complete (implicit with final response)
-
-**Notes:**
-- The `content` array always displays the answer first, followed by search results (if web_search was used)
-- The response format is optimized for token efficiency, returning only essential fields
-- Search results are formatted consistently with the `you-search` tool using shared formatting utilities
 ```
 
 **Local NPM Package:**
@@ -435,283 +389,183 @@ Use [mcp-remote](https://www.npmjs.com/package/mcp-remote) to bridge HTTP to std
 
 </details>
 
-### General Configuration Notes
+## Available Tools
 
-- **Remote Server:** Recommended for most users - no installation required, just API key
-- **NPM Package:** Alternative for local usage or when you prefer running locally
-- **HTTP Transport:** Use for remote server connections and web applications
-- **Stdio Transport:** Use for local npm package installations and development
-- **API Key:** Always required - either as environment variable (stdio) or in headers (http)
-- **Docker/Local Development:** See sections below for advanced local development setups
+This MCP server provides three tools that work seamlessly with your AI agent through natural language:
 
-See the [Transport Protocols](#transport-protocols) section for detailed protocol information.
+### you-search
+Comprehensive web and news search with advanced filtering capabilities. Perfect for finding current information, research articles, documentation, and news stories.
 
-## Building and Running Locally
+**When to use**: When you need to search the web for information, filter by specific sites/file types, or get the latest news on a topic.
 
-### Prerequisites
+### you-express
+Fast AI-powered agent that provides synthesized answers with optional real-time web search. Ideal for straightforward questions that benefit from AI interpretation.
 
-- **Bun 1.2.21 or higher** (replaces Node.js)
-- You.com API key (get one at [api.you.com](https://api.you.com))
+**When to use**: When you want a direct answer to a question, with optional web search for up-to-date context and citations.
 
-### Local Workspace Setup
+### you-contents
+Extract full page content from URLs in markdown or HTML format. Useful for documentation analysis, content processing, and batch URL extraction.
 
-Since this package is not published to npm (marked as private), you need to clone and set it up locally:
+**When to use**: When you need to extract and analyze content from web pages, either for reading or processing in your workflow.
 
+---
+
+**Note**: Your MCP client automatically shows you all available parameters and their descriptions when you use these tools. Simply ask your AI agent in natural language what you want to do, and it will orchestrate the appropriate tool calls for you.
+
+## Use Cases & Examples
+
+Here are common scenarios showing when and how to use each tool with natural language queries:
+
+### Research & Information Gathering
+
+**Use you-search when:**
+- "Find recent research papers about quantum computing on arxiv.org"
+- "Search for TypeScript documentation about generics"
+- "Get the latest news about renewable energy from the past week"
+- "Find PDF files about machine learning algorithms"
+
+**Use you-express when:**
+- "What are the key differences between REST and GraphQL?"
+- "Explain how quantum entanglement works"
+- "What happened in the tech industry today?" (with web search enabled)
+- "Summarize the main features of the latest Python release"
+
+### Content Extraction & Analysis
+
+**Use you-contents when:**
+- "Extract the content from this blog post: https://example.com/article"
+- "Get the documentation from these three URLs in markdown format"
+- "Pull the HTML content from this page preserving the layout"
+- "Batch extract content from these 5 documentation pages"
+
+### Combined Workflows
+
+Your AI agent can combine multiple tools in a single conversation:
+1. **Research + Extract**: "Search for the best TypeScript tutorials, then extract the content from the top 3 results"
+2. **Question + Deep Dive**: "What is WebAssembly? Then search for real-world examples and extract code samples"
+3. **News + Analysis**: "Find recent articles about AI regulation, then summarize the key points"
+
+### Pro Tips
+
+- **Be specific**: Include domains, date ranges, or file types when searching
+- **Natural language**: You don't need to memorize parameters - just describe what you want
+- **Follow up**: Ask clarifying questions to refine results
+- **Combine tools**: Let your agent orchestrate multiple tool calls for complex workflows
+
+## Troubleshooting & Support
+
+### Common Issues
+
+**Server not connecting:**
+- Verify your API key is correct and properly formatted
+- Check that your MCP client configuration matches the template for your setup (remote vs local)
+- For HTTP mode: Ensure the Authorization header includes "Bearer " prefix
+- For stdio mode: Verify the YDC_API_KEY environment variable is set
+
+**Tool not working:**
+- Check your MCP client logs for error messages
+- Verify your API key has the necessary permissions
+- For remote server: Ensure you can reach https://api.you.com/mcp-health
+- For local: Verify Bun or Node.js is installed and the package is properly set up
+
+**Authentication errors:**
+- Remote server uses Bearer token authentication in headers
+- Local stdio mode uses YDC_API_KEY environment variable
+- Make sure you're using the correct authentication method for your setup
+
+### Error Logs
+
+Error messages and detailed logs appear in your MCP client's log output. Check your client's documentation for how to access logs:
+- Claude Code: Check terminal output or logs
+- Claude Desktop: View logs in application menu
+- Cursor: Check MCP server logs in settings
+- VS Code: View Output panel for MCP server logs
+
+### Report an Issue
+
+If you encounter a problem, you can report it via email or GitHub:
+
+**Email Support:** support@you.com
+
+**Web Support:** [You.com Support](https://you.com/support/contact-us)
+
+**GitHub Issues:** [Report bugs and feature requests](https://github.com/youdotcom-oss/youdotcom-mcp-server/issues)
+
+**Tip:** When errors occur, check your MCP client logs - they include a pre-filled mailto link with error details for easy reporting.
+
+## For Contributors
+
+Interested in contributing to the You.com MCP Server? We'd love your help!
+
+**Note:** This section is for contributors and self-hosting only. Most users should use the remote server or NPM package from [Getting Started](#getting-started).
+
+### Development Setup
+
+For complete development setup instructions, code style guidelines, testing patterns, and contribution workflow, see [AGENTS.md](./AGENTS.md).
+
+The developer guide includes:
+- Local workspace setup with Bun runtime
+- Code style preferences and TypeScript guidelines
+- MCP-specific patterns and best practices
+- Testing strategy and examples
+- Git hooks and code quality tools
+- API integration details
+- Architecture overview with diagrams
+- Troubleshooting common issues
+- Contributing guidelines with commit conventions
+
+### Local Development & Self-Hosting
+
+**Quick Docker Setup**:
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd you-mcp-server
-
-# Install dependencies
-bun install
-
-# Set up your environment file with your You.com API key (optional)
-echo "export YDC_API_KEY=<you-api-key>" > .env
-```
-
-### Building
-
-```bash
-# Build is optional for development, required for production bin executables
-bun run build  # Builds only stdio.ts to bin/stdio.js
-```
-
-**For MCP Client Integration:**
-Use the full path to your local server installation in your `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "ydc-search": {
-      "type": "stdio",
-      "command": "bun",
-      "args": ["/full/path/to/you-mcp-server/src/stdio.ts"],
-      "env": {
-        "YDC_API_KEY": "<you-api-key>"
-      }
-    }
-  }
-}
-```
-
-**Alternative using built executable:**
-```json
-{
-  "mcpServers": {
-    "ydc-search": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["/full/path/to/you-mcp-server/bin/stdio.js"],
-      "env": {
-        "YDC_API_KEY": "<you-api-key>"
-      }
-    }
-  }
-}
-```
-
-### Configuration
-
-Set up your environment file with your You.com API key:
-
-```bash
-echo "export YDC_API_KEY=<you-api-key>" > .env
-source .env
-```
-
-Replace `<you-api-key>` with your actual API key:
-```bash
-echo "export YDC_API_KEY=your-actual-api-key-here" > .env
-source .env
-```
-
-Alternatively, set it as an environment variable:
-
-```bash
-export YDC_API_KEY="your-api-key-here"
-```
-
-### Available Scripts
-
-- `bun run dev` - Start server in stdio mode for development
-- `bun run build` - Build stdio.ts to bin/ for production
-- `bun start` - Start HTTP server on port 4000 (or PORT env var)
-- `bun run test` - Run test suite
-- `bun run test:coverage` - Run tests with coverage report
-- `bun run test:coverage:watch` - Run tests with coverage in watch mode
-- `bun run check` - Run Biome linting and formatting checks
-- `bun run check:write` - Auto-fix linting and formatting issues
-- `bun run inspect` - Start MCP inspector with environment variables loaded
-- `bun run prepare` - Set up git hooks for the repository
-
-### Executable Scripts
-
-The project includes executable scripts in `bin/`:
-- `./bin/stdio.js` - Stdio transport server (requires `bun run build` first)
-- `./bin/http` - HTTP transport server (runs directly from source)
-
-### Running the Server
-
-**Stdio Mode (Recommended for MCP Clients)** - For local workspace integration:
-```bash
-# Development mode (direct source)
-bun run dev
-# or
-bun src/stdio.ts
-
-# Production mode (built distribution)
-bun run build  # Build first
-./bin/stdio.js # Run built version
-```
-
-**HTTP Mode** - For web applications and remote clients:
-```bash
-# Default port 4000
-bun start
-# or
-./bin/http
-
-# Custom port
-PORT=8080 bun start
-# or
-PORT=8080 ./bin/http
-```
-
-### Docker Deployment
-
-**Build and run with Docker:**
-
-```bash
-# Build the optimized Docker image (243MB final size)
 docker build -t youdotcom-mcp-server .
-
-# Run the container
 docker run -d -p 4000:4000 --name youdotcom-mcp youdotcom-mcp-server
 ```
 
-**Optimization Features:**
-- **Multi-stage build**: Uses standalone binary compilation with `bun build --compile`
-- **Minimal base image**: Ubuntu 22.04 with no additional packages
-- **Size optimized**: 243MB final image
-- **Self-contained**: Includes Bun runtime in compiled binary
-- **Security**: Runs as non-root user, minimal attack surface
-
-**Using Docker Compose:**
-
-Create a `docker-compose.yml` file:
-```yaml
-version: '3.8'
-services:
-  you-mcp-server:
-    build: .
-    ports:
-      - "4000:4000"
-    environment:
-      - YDC_API_KEY=${YDC_API_KEY}
-      - PORT=4000
-    restart: unless-stopped
-```
-
-Then run:
+**Local Workspace Setup**:
 ```bash
-docker-compose up -d
+# Clone and install
+git clone https://github.com/youdotcom-oss/youdotcom-mcp-server.git
+cd youdotcom-mcp-server
+bun install
+
+# Set up environment
+echo "export YDC_API_KEY=your-api-key-here" > .env
+source .env
+
+# Run development server (stdio mode)
+bun run dev
+
+# Or run HTTP server (port 4000)
+bun start
 ```
 
-### Claude Code Setup with Docker
+For detailed instructions on building from source, running in different modes, and deployment options, see [AGENTS.md](./AGENTS.md).
 
-To use this MCP server with Claude Code via Docker:
+### Quick Links
 
-1. **Start the Docker container:**
-   ```bash
-   docker run -d -p 4000:4000 --name youdotcom-mcp youdotcom-mcp-server
-   ```
+- **Developer Guide**: [AGENTS.md](./AGENTS.md) - Complete technical reference
+- **Report Issues**: [GitHub Issues](https://github.com/youdotcom-oss/youdotcom-mcp-server/issues)
+- **Source Code**: [GitHub Repository](https://github.com/youdotcom-oss/youdotcom-mcp-server)
+- **API Documentation**: [You.com Docs](https://documentation.you.com/get-started/welcome)
 
-2. **Configure Claude Code:**
-   - Copy `.mcp.example.json` to `.mcp.json`
-   - Replace `<you.com api key>` with your actual You.com API key
+### How to Contribute
 
-   ```bash
-   cp .mcp.example.json .mcp.json
-   ```
+1. Fork the repository
+2. Create a feature branch following naming conventions in AGENTS.md
+3. Follow the code style guidelines and use conventional commits
+4. Write tests for your changes (maintain >80% coverage)
+5. Run quality checks: `bun run check && bun test`
+6. Submit a pull request with a clear description
 
-   Your `.mcp.json` should look like:
-   ```json
-   {
-     "mcpServers": {
-       "ydc-search": {
-         "type": "http",
-         "url": "http://localhost:4000/mcp",
-         "headers": {
-           "Authorization": "Bearer <you-api-key>"
-         }
-       }
-     }
-   }
-   ```
+We appreciate all contributions, whether it's:
+- Bug fixes
+- New features
+- Documentation improvements
+- Performance optimizations
+- Test coverage improvements
 
-3. **Verify the setup:**
-   - The server will be available at `http://localhost:4000/mcp`
-   - Health check endpoint: `http://localhost:4000/mcp-health`
+---
 
-## API Reference
-
-This MCP server provides two tools for different AI-powered workflows:
-
-### you-search
-
-Performs a comprehensive web and news search using the You.com Search API.
-
-**Parameters:**
-- `query` (string, required): The base search query to send to the You.com API. This will be combined with additional filters like site, fileType, and language to create the final search query. You can also use operators directly: + (exact term, e.g., "Enron +GAAP"), - (exclude term, e.g., "guitar -prs"), site: (domain, e.g., "site:uscourts.gov"), filetype: (e.g., "filetype:pdf"), lang: (e.g., "lang:es"). Use parentheses for multi-word phrases (e.g., "+(machine learning)", "-(social media)").
-- `site` (string, optional): Search within a specific website domain (e.g., 'github.com')
-- `fileType` (string, optional): Filter by a specific file type (e.g., 'pdf', 'doc', 'txt')
-- `language` (string, optional): Filter by a specific language using ISO 639-1 code (e.g., 'en', 'es', 'fr')
-- `exactTerms` (string, optional): Exact terms with logical operators: 'python AND|tutorial|NOT beginner' (pipe-separated, add AND/OR after terms, default OR). Use parentheses for multi-word phrases (e.g., '(machine learning)|typescript')
-- `excludeTerms` (string, optional): Terms to exclude with logical operators: 'spam AND|ads|NOT relevant' (pipe-separated, add AND/OR after terms, default OR). Use parentheses for multi-word phrases (e.g., '(social media)|ads'). Cannot be used with exactTerms.
-- `count` (integer, optional): Maximum number of results to return per section. Range: 1-20.
-- `freshness` (string, optional): Freshness of results. Options: `day`, `week`, `month`, `year`.
-- `offset` (integer, optional): Offset for pagination (calculated in multiples of count). Range: 0-9.
-- `country` (string, optional): Country code for localized results. Examples: `US`, `GB`, `DE`, `FR`, `JP`, `CA`, `AU`, etc.
-- `safesearch` (string, optional): Content filtering level. Options: `off`, `moderate` (default), `strict`.
-
-**Returns:**
-```json
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "Search Results for \"machine learning\":\n\nWEB RESULTS:\n\nTitle: Introduction to Machine Learning\nURL: https://github.com/ml-tutorials/intro\nDescription: A comprehensive guide to machine learning fundamentals\nSnippets:\n- Learn the basics of supervised and unsupervised learning\n- Practical examples with Python and TensorFlow\n\n---\n\nTitle: Machine Learning Course\nURL: https://coursera.org/ml-course\nDescription: Stanford's machine learning course materials\nSnippets:\n- Mathematical foundations of ML algorithms\n- Hands-on programming assignments\n\n==================================================\n\nNEWS RESULTS:\n\nTitle: AI Breakthrough in Medical Diagnosis\nURL: https://techcrunch.com/ai-medical-breakthrough\nDescription: New machine learning model achieves 95% accuracy\nPublished: 2024-01-15T10:30:00"
-    }
-  ],
-  "structuredContent": {
-    "results": {
-      "web": [
-        {
-          "url": "https://github.com/ml-tutorials/intro",
-          "title": "Introduction to Machine Learning",
-          "description": "A comprehensive guide to machine learning fundamentals",
-          "snippets": [
-            "Learn the basics of supervised and unsupervised learning",
-            "Practical examples with Python and TensorFlow"
-          ],
-          "page_age": "2024-01-10T14:20:00",
-          "authors": ["ML Tutorial Team"]
-        }
-      ],
-      "news": [
-        {
-          "url": "https://techcrunch.com/ai-medical-breakthrough",
-          "title": "AI Breakthrough in Medical Diagnosis",
-          "description": "New machine learning model achieves 95% accuracy",
-          "page_age": "2024-01-15T10:30:00"
-        }
-      ]
-    },
-    "metadata": {
-      "query": "machine learning",
-      "request_uuid": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-      "latency": 0.247
-    }
-  }
-}
-```
+**License**: MIT
+**Author**: You.com (https://you.com)

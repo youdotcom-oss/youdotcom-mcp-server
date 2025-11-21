@@ -1,8 +1,8 @@
 import { describe, expect, setDefaultTimeout, test } from 'bun:test';
-import type { ExpressAgentMcpResponse } from '../express.schemas';
-import { callExpressAgent, formatExpressAgentResponse } from '../express.utils';
+import type { ExpressAgentMcpResponse } from '../express.schemas.ts';
+import { callExpressAgent, formatExpressAgentResponse } from '../express.utils.ts';
 
-const getClientVersion = () => 'MCP/test (You.com; test-client)';
+const getUserAgent = () => 'MCP/test (You.com; test-client)';
 
 setDefaultTimeout(20_000);
 
@@ -10,7 +10,7 @@ describe('callExpressAgent', () => {
   test('returns answer only (WITHOUT web_search tools)', async () => {
     const result = await callExpressAgent({
       agentInput: { input: 'What is machine learning?' },
-      getClientVersion,
+      getUserAgent,
     });
 
     // Verify MCP response structure
@@ -30,7 +30,7 @@ describe('callExpressAgent', () => {
         input: 'Latest developments in quantum computing',
         tools: [{ type: 'web_search' }],
       },
-      getClientVersion,
+      getUserAgent,
     });
 
     // Verify MCP response has both answer and results
@@ -57,49 +57,10 @@ describe('callExpressAgent', () => {
     expect(result.agent).toBe('express');
   }, 30000);
 
-  test('calls progress callback when provided', async () => {
-    const progressUpdates: Array<{
-      progressToken: string | number;
-      progress: number;
-      total: number;
-      message: string;
-    }> = [];
-
-    const sendProgress = async (params: {
-      progressToken: string | number;
-      progress: number;
-      total: number;
-      message: string;
-    }) => {
-      progressUpdates.push(params);
-    };
-
+  test('works without optional parameters', async () => {
     const result = await callExpressAgent({
       agentInput: { input: 'What is the capital of France?' },
-      getClientVersion,
-      progressToken: 'test-token-123',
-      sendProgress,
-    });
-
-    // Verify result is valid
-    expect(result).toHaveProperty('answer');
-    expect(result.answer.length).toBeGreaterThan(0);
-
-    // Verify progress updates were sent (only 33% since we removed streaming)
-    expect(progressUpdates.length).toBeGreaterThanOrEqual(1);
-
-    // Check 33% progress (connecting to API)
-    const connectingProgress = progressUpdates.find((p) => p.progress === 33);
-    expect(connectingProgress).toBeDefined();
-    expect(connectingProgress?.progressToken).toBe('test-token-123');
-    expect(connectingProgress?.total).toBe(100);
-    expect(connectingProgress?.message).toBe('Connecting to You.com API...');
-  });
-
-  test('works without progress callback (backward compatibility)', async () => {
-    const result = await callExpressAgent({
-      agentInput: { input: 'What is the capital of France?' },
-      getClientVersion,
+      getUserAgent,
       // No progressToken or sendProgress provided
     });
 
@@ -128,21 +89,26 @@ describe('formatExpressAgentResponse', () => {
     expect(result.content[0]).toHaveProperty('type', 'text');
     expect(result.content[0]).toHaveProperty('text');
     expect(result.content[0]?.text).toContain('Express Agent Answer');
-    expect(result.content[0]?.text).toContain(
-      'The capital of France is Paris.',
-    );
+    expect(result.content[0]?.text).toContain('The capital of France is Paris.');
 
-    // Verify structuredContent matches MCP response
+    // Verify structuredContent is minimal (not full response)
     expect(result).toHaveProperty('structuredContent');
-    expect(result.structuredContent).toEqual(mockResponse);
+    expect(result).toHaveProperty('fullResponse');
+    expect(result.structuredContent).toHaveProperty('answer');
+    expect(result.structuredContent).toHaveProperty('hasResults');
+    expect(result.structuredContent).toHaveProperty('resultCount');
+    expect(result.structuredContent).toHaveProperty('agent');
     expect(result.structuredContent.answer).toBe(mockResponse.answer);
+    expect(result.structuredContent.hasResults).toBe(false);
+    expect(result.structuredContent.resultCount).toBe(0);
+    // No results, so results field should be undefined
     expect(result.structuredContent.results).toBeUndefined();
+    expect(result.fullResponse).toEqual(mockResponse);
   });
 
   test('formats response with answer and search results', () => {
     const mockResponse: ExpressAgentMcpResponse = {
-      answer:
-        'Quantum computing is advancing rapidly with recent breakthroughs in error correction.',
+      answer: 'Quantum computing is advancing rapidly with recent breakthroughs in error correction.',
       results: {
         web: [
           {
@@ -168,48 +134,66 @@ describe('formatExpressAgentResponse', () => {
     // Verify answer comes FIRST
     expect(result.content[0]?.type).toBe('text');
     expect(result.content[0]?.text).toContain('Express Agent Answer');
-    expect(result.content[0]?.text).toContain(
-      'Quantum computing is advancing rapidly',
-    );
+    expect(result.content[0]?.text).toContain('Quantum computing is advancing rapidly');
 
-    // Verify search results come SECOND
+    // Verify search results come SECOND (without URLs in text)
     expect(result.content[1]?.type).toBe('text');
     expect(result.content[1]?.text).toContain('Search Results');
     expect(result.content[1]?.text).toContain('Quantum Computing Breakthrough');
-    expect(result.content[1]?.text).toContain('https://example.com/quantum1');
     expect(result.content[1]?.text).toContain('Latest in Quantum Research');
-    expect(result.content[1]?.text).toContain('https://example.com/quantum2');
+    // URLs should NOT be in text content
+    expect(result.content[1]?.text).not.toContain('https://example.com/quantum1');
+    expect(result.content[1]?.text).not.toContain('https://example.com/quantum2');
 
-    // Verify structuredContent matches MCP response exactly
-    expect(result.structuredContent).toEqual(mockResponse);
+    // Verify structuredContent is minimal with counts
+    expect(result.structuredContent).toHaveProperty('answer');
+    expect(result.structuredContent).toHaveProperty('hasResults');
+    expect(result.structuredContent).toHaveProperty('resultCount');
     expect(result.structuredContent.answer).toBe(mockResponse.answer);
-    expect(result.structuredContent.results).toEqual(mockResponse.results!);
-    expect(result.structuredContent.results?.web).toHaveLength(2);
+    expect(result.structuredContent.hasResults).toBe(true);
+    expect(result.structuredContent.resultCount).toBe(2);
+
+    // URLs should be in structuredContent.results
+    expect(result.structuredContent).toHaveProperty('results');
+    expect(result.structuredContent.results?.web).toBeDefined();
+    expect(result.structuredContent.results?.web?.length).toBe(2);
+    expect(result.structuredContent.results?.web?.[0]).toEqual({
+      url: 'https://example.com/quantum1',
+      title: 'Quantum Computing Breakthrough',
+    });
+    expect(result.structuredContent.results?.web?.[1]).toEqual({
+      url: 'https://example.com/quantum2',
+      title: 'Latest in Quantum Research',
+    });
+
+    // Verify fullResponse has complete data
+    expect(result.fullResponse).toEqual(mockResponse);
+    expect(result.fullResponse.results?.web).toHaveLength(2);
   });
 
   test('structuredContent validation for answer only', () => {
     const mockResponse: ExpressAgentMcpResponse = {
-      answer:
-        'Neural networks are computational models inspired by biological neurons.',
+      answer: 'Neural networks are computational models inspired by biological neurons.',
       agent: 'express',
     };
 
     const result = formatExpressAgentResponse(mockResponse);
 
-    // Verify structure matches schema
+    // Verify structure matches minimal schema
     expect(result.structuredContent).toMatchObject({
       answer: expect.any(String),
+      hasResults: false,
+      resultCount: 0,
       agent: 'express',
     });
 
-    // Ensure no results field when not provided
-    expect(result.structuredContent.results).toBeUndefined();
+    // Verify fullResponse has complete data
+    expect(result.fullResponse.results).toBeUndefined();
   });
 
   test('structuredContent validation for answer with results', () => {
     const mockResponse: ExpressAgentMcpResponse = {
-      answer:
-        'Recent AI breakthroughs include advances in language models and computer vision.',
+      answer: 'Recent AI breakthroughs include advances in language models and computer vision.',
       results: {
         web: [
           {
@@ -224,24 +208,37 @@ describe('formatExpressAgentResponse', () => {
 
     const result = formatExpressAgentResponse(mockResponse);
 
-    // Verify structuredContent exactly matches input (no transformation)
-    expect(result.structuredContent).toEqual(mockResponse);
-
-    // Verify structure has all expected fields
+    // Verify structuredContent is minimal with counts
+    expect(result.structuredContent).toHaveProperty('answer');
+    expect(result.structuredContent).toHaveProperty('hasResults');
+    expect(result.structuredContent).toHaveProperty('resultCount');
+    expect(result.structuredContent).toHaveProperty('agent');
     expect(result.structuredContent.answer).toBe(
       'Recent AI breakthroughs include advances in language models and computer vision.',
     );
     expect(result.structuredContent.agent).toBe('express');
-    expect(result.structuredContent.results).toBeDefined();
-    expect(Array.isArray(result.structuredContent.results?.web)).toBe(true);
-    expect(result.structuredContent.results?.web.length).toBe(1);
+    expect(result.structuredContent.hasResults).toBe(true);
+    expect(result.structuredContent.resultCount).toBe(1);
 
-    // Verify search result fields
-    const searchResult = result.structuredContent.results?.web[0];
+    // URLs should be in structuredContent.results
+    expect(result.structuredContent).toHaveProperty('results');
+    expect(result.structuredContent.results?.web).toBeDefined();
+    expect(result.structuredContent.results?.web?.length).toBe(1);
+    expect(result.structuredContent.results?.web?.[0]).toEqual({
+      url: 'https://example.com/ai-breakthrough',
+      title: 'AI Breakthrough 2025',
+    });
+
+    // Verify fullResponse has complete search results
+    expect(result.fullResponse).toEqual(mockResponse);
+    expect(result.fullResponse.results).toBeDefined();
+    expect(Array.isArray(result.fullResponse.results?.web)).toBe(true);
+    expect(result.fullResponse.results?.web.length).toBe(1);
+
+    // Verify search result fields in fullResponse
+    const searchResult = result.fullResponse.results?.web[0];
     expect(searchResult?.url).toBe('https://example.com/ai-breakthrough');
     expect(searchResult?.title).toBe('AI Breakthrough 2025');
-    expect(searchResult?.snippet).toBe(
-      'Major advances in artificial intelligence.',
-    );
+    expect(searchResult?.snippet).toBe('Major advances in artificial intelligence.');
   });
 });

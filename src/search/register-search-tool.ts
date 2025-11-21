@@ -1,25 +1,24 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getLogger } from '../shared/shared.utils';
-import { SearchQuerySchema, SearchResponseSchema } from './search.schemas';
-import { fetchSearchResults, formatSearchResults } from './search.utils';
+import { generateErrorReportLink, getLogger } from '../shared/shared.utils.ts';
+import { SearchQuerySchema, SearchStructuredContentSchema } from './search.schemas.ts';
+import { fetchSearchResults, formatSearchResults } from './search.utils.ts';
 
 export const registerSearchTool = ({
   mcp,
   YDC_API_KEY,
-  getClientVersion,
+  getUserAgent,
 }: {
   mcp: McpServer;
   YDC_API_KEY?: string;
-  getClientVersion: () => string;
+  getUserAgent: () => string;
 }) => {
   mcp.registerTool(
     'you-search',
     {
-      title: 'You.com Search',
-      description:
-        'Performs a web and news search using the You.com Search API and returns a formatted list of results.',
+      title: 'Web Search',
+      description: 'Web and news search via You.com',
       inputSchema: SearchQuerySchema.shape,
-      outputSchema: SearchResponseSchema.shape,
+      outputSchema: SearchStructuredContentSchema.shape,
     },
     async (searchQuery) => {
       const logger = getLogger(mcp);
@@ -27,7 +26,7 @@ export const registerSearchTool = ({
         const response = await fetchSearchResults({
           searchQuery,
           YDC_API_KEY,
-          getClientVersion,
+          getUserAgent,
         });
 
         const webCount = response.results.web?.length ?? 0;
@@ -41,7 +40,13 @@ export const registerSearchTool = ({
 
           return {
             content: [{ type: 'text' as const, text: 'No results found.' }],
-            structuredContent: response,
+            structuredContent: {
+              resultCounts: {
+                web: 0,
+                news: 0,
+                total: 0,
+              },
+            },
           };
         }
 
@@ -50,13 +55,19 @@ export const registerSearchTool = ({
           data: `Search successful for query: "${searchQuery.query}" - ${webCount} web results, ${newsCount} news results (${webCount + newsCount} total)`,
         });
 
-        return formatSearchResults(response);
+        const { content, structuredContent } = formatSearchResults(response);
+        return { content, structuredContent };
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : String(err);
+        const reportLink = generateErrorReportLink({
+          errorMessage,
+          tool: 'you-search',
+          clientInfo: getUserAgent(),
+        });
 
         await logger({
           level: 'error',
-          data: `Search API call failed: ${errorMessage}`,
+          data: `Search API call failed: ${errorMessage}\n\nReport this issue: ${reportLink}`,
         });
 
         return {

@@ -3,6 +3,12 @@ import type { LoggingMessageNotification } from '@modelcontextprotocol/sdk/types
 import packageJson from '../../package.json' with { type: 'json' };
 
 /**
+ * Creates User-Agent string for API requests
+ * Used by search and express agent API calls
+ */
+const setUserAgent = (client: string) => `MCP/${packageJson.version} (You.com; ${client})`;
+
+/**
  * Get's function that returns a formatted client version information into a string
  * Used by stdio.ts and http.ts for logging/debugging
  */
@@ -10,25 +16,17 @@ export const useGetClientVersion = (mcp: McpServer) => () => {
   const clientVersion = mcp.server.getClientVersion();
   if (clientVersion) {
     const { name, version, title, websiteUrl } = clientVersion;
-    return [name, version, title, websiteUrl].filter(Boolean).join('; ');
+    return setUserAgent([name, version, title, websiteUrl].filter(Boolean).join('; '));
   }
-  return 'UNKNOWN';
+  return setUserAgent('UNKNOWN');
 };
-
-/**
- * Creates User-Agent string for API requests
- * Used by search and express agent API calls
- */
-export const setUserAgent = (client: string) =>
-  `MCP/${packageJson.version} (You.com; ${client})`;
 
 /**
  * Creates a logger function that sends messages through MCP server
  * Used by tool registration files
  */
 export const getLogger =
-  (mcp: McpServer) =>
-  async (params: LoggingMessageNotification['params'], _sessionId?: string) => {
+  (mcp: McpServer) => async (params: LoggingMessageNotification['params'], _sessionId?: string) => {
     await mcp.server.sendLoggingMessage(params);
   };
 
@@ -38,18 +36,49 @@ export const getLogger =
  * Used by both search and express agent utilities
  */
 export const checkResponseForErrors = (responseData: unknown) => {
-  if (
-    typeof responseData === 'object' &&
-    responseData !== null &&
-    'error' in responseData
-  ) {
+  if (typeof responseData === 'object' && responseData !== null && 'error' in responseData) {
     const errorMessage =
-      typeof responseData.error === 'string'
-        ? responseData.error
-        : JSON.stringify(responseData.error);
+      typeof responseData.error === 'string' ? responseData.error : JSON.stringify(responseData.error);
     throw new Error(`You.com API Error: ${errorMessage}`);
   }
   return responseData;
+};
+
+/**
+ * Generates a mailto link for error reporting with pre-filled context
+ * Used by tool error handlers to provide easy error reporting
+ */
+export const generateErrorReportLink = ({
+  errorMessage,
+  tool,
+  clientInfo,
+}: {
+  errorMessage: string;
+  tool: string;
+  clientInfo: string;
+}): string => {
+  const subject = `MCP Server Issue v${packageJson.version}`;
+  const body = `Server Version: v${packageJson.version}
+Client: ${clientInfo}
+Tool: ${tool}
+
+Error Message:
+${errorMessage}
+
+Steps to Reproduce:
+1.
+2.
+3.
+
+Additional Context:
+`;
+
+  const params = new URLSearchParams({
+    subject,
+    body,
+  });
+
+  return `mailto:support@you.com?${params.toString()}`;
 };
 
 /**
@@ -65,40 +94,31 @@ export type GenericSearchResult = {
 };
 
 /**
- * Format single search result item for display
- * Used by both search and express agent formatting
- */
-export const formatSearchResultItem = (
-  result: GenericSearchResult,
-  _index: number,
-): string => {
-  const parts: string[] = [`Title: ${result.title}`, `URL: ${result.url}`];
-
-  // Add description if present (from Search API)
-  if (result.description) {
-    parts.push(`Description: ${result.description}`);
-  }
-
-  // Handle snippets array (from Search API)
-  if (result.snippets && result.snippets.length > 0) {
-    parts.push(`Snippets:\n- ${result.snippets.join('\n- ')}`);
-  }
-  // Handle single snippet (from Express API)
-  else if (result.snippet) {
-    parts.push(`Snippet: ${result.snippet}`);
-  }
-
-  return parts.join('\n');
-};
-
-/**
  * Format array of search results into display text
  * Used by both search and express agent formatting
+ * @param results - Array of search results to format
+ * @param includeUrls - Whether to include URLs in the text (default: true)
  */
-export const formatSearchResultsText = (
-  results: GenericSearchResult[],
-): string => {
+export const formatSearchResultsText = (results: GenericSearchResult[]): string => {
   return results
-    .map((result, index) => formatSearchResultItem(result, index + 1))
+    .map((result) => {
+      const parts: string[] = [`Title: ${result.title}`];
+
+      // Add description if present (from Search API)
+      if (result.description) {
+        parts.push(`Description: ${result.description}`);
+      }
+
+      // Handle snippets array (from Search API)
+      if (result.snippets && result.snippets.length > 0) {
+        parts.push(`Snippets:\n- ${result.snippets.join('\n- ')}`);
+      }
+      // Handle single snippet (from Express API)
+      else if (result.snippet) {
+        parts.push(`Snippet: ${result.snippet}`);
+      }
+
+      return parts.join('\n');
+    })
     .join('\n\n');
 };

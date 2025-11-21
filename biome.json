@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.3.2/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.3.6/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -10,20 +10,48 @@
   },
   "formatter": {
     "enabled": true,
-    "indentStyle": "space"
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always",
+      "quoteProperties": "asNeeded"
+    }
+  },
+  "json": {
+    "formatter": {
+      "trailingCommas": "none"
+    }
   },
   "linter": {
     "enabled": true,
     "rules": {
       "recommended": true,
       "correctness": {
-        "noUnusedVariables": "error"
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error",
+        "useImportExtensions": {
+          "level": "error"
+        }
       },
       "style": {
-        "useConst": "error"
+        "useConst": "error",
+        "useTemplate": "error",
+        "noNegationElse": "warn",
+        "useImportType": "error"
       },
       "suspicious": {
-        "noExplicitAny": "error"
+        "noExplicitAny": "error",
+        "noConsole": "warn"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "useLiteralKeys": "warn"
       }
     }
   },
@@ -33,17 +61,13 @@
       "linter": {
         "rules": {
           "suspicious": {
-            "noExplicitAny": "warn"
+            "noExplicitAny": "warn",
+            "noConsole": "off"
           }
         }
       }
     }
   ],
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "single"
-    }
-  },
   "assist": {
     "enabled": true,
     "actions": {

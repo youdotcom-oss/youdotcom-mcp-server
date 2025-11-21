@@ -1,17 +1,10 @@
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  setDefaultTimeout,
-  test,
-} from 'bun:test';
-import httpApp from '../http.js';
+import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
+import httpApp from '../http.ts';
 
 // Increase default timeout for hooks to prevent intermittent failures
 setDefaultTimeout(15_000);
 
-let server: Bun.Server;
+let server: ReturnType<typeof Bun.serve>;
 let baseUrl: string;
 const testApiKey = process.env.YDC_API_KEY;
 

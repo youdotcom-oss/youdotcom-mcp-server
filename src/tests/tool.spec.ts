@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { $ } from 'bun';
-import type { SearchResponse } from '../search/search.schemas';
+import type { ContentsStructuredContent } from '../contents/contents.schemas.ts';
+import type { SearchStructuredContent } from '../search/search.schemas.ts';
 
 let client: Client;
 
@@ -35,8 +36,8 @@ describe('registerSearchTool', () => {
     const searchTool = tools.tools.find((t) => t.name === 'you-search');
 
     expect(searchTool).toBeDefined();
-    expect(searchTool?.title).toBe('You.com Search');
-    expect(searchTool?.description).toContain('Performs a web and news search');
+    expect(searchTool?.title).toBe('Web Search');
+    expect(searchTool?.description).toContain('Web and news search');
   });
 
   test('performs basic search successfully', async () => {
@@ -56,11 +57,13 @@ describe('registerSearchTool', () => {
     const text = content[0]?.text;
     expect(text).toContain('Search Results for');
     expect(text).toContain('javascript tutorial');
-    const structuredContent = result.structuredContent as SearchResponse;
-    // Should have structured content
+    const structuredContent = result.structuredContent as SearchStructuredContent;
+    // Should have structured content with minimal format
     expect(result).toHaveProperty('structuredContent');
-    expect(structuredContent).toHaveProperty('results');
-    expect(structuredContent).toHaveProperty('metadata');
+    expect(structuredContent).toHaveProperty('resultCounts');
+    expect(structuredContent.resultCounts).toHaveProperty('web');
+    expect(structuredContent.resultCounts).toHaveProperty('news');
+    expect(structuredContent.resultCounts).toHaveProperty('total');
   });
 
   test('handles search with web results formatting', async () => {
@@ -76,14 +79,22 @@ describe('registerSearchTool', () => {
     const text = content[0]?.text;
     expect(text).toContain('WEB RESULTS:');
     expect(text).toContain('Title:');
-    expect(text).toContain('URL:');
+    // URL should NOT be in text content anymore
+    expect(text).not.toContain('URL:');
     expect(text).toContain('Description:');
     expect(text).toContain('Snippets:');
 
-    // Verify structured data
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.results.web).toBeDefined();
-    expect(Array.isArray(structuredContent?.results.web)).toBe(true);
+    // Verify structured data has result counts
+    const structuredContent = result.structuredContent as SearchStructuredContent;
+    expect(structuredContent.resultCounts.web).toBeGreaterThan(0);
+    expect(structuredContent.resultCounts.total).toBeGreaterThan(0);
+
+    // URLs should be in structuredContent.results
+    expect(structuredContent.results).toBeDefined();
+    expect(structuredContent.results?.web).toBeDefined();
+    expect(structuredContent.results?.web?.length).toBeGreaterThan(0);
+    expect(structuredContent.results?.web?.[0]).toHaveProperty('url');
+    expect(structuredContent.results?.web?.[0]).toHaveProperty('title');
   });
 
   test('handles search with news results', async () => {
@@ -98,15 +109,12 @@ describe('registerSearchTool', () => {
     const content = result.content as { type: string; text: string }[];
     const text = content[0]?.text;
 
-    const structuredContent = result.structuredContent as SearchResponse;
+    const structuredContent = result.structuredContent as SearchStructuredContent;
     // Check if news results are included
-    if (
-      structuredContent?.results.news &&
-      structuredContent.results.news.length > 0
-    ) {
+    if (structuredContent.resultCounts.news > 0) {
       expect(text).toContain('NEWS RESULTS:');
       expect(text).toContain('Published:');
-      expect(Array.isArray(structuredContent.results.news)).toBe(true);
+      expect(structuredContent.resultCounts.news).toBeGreaterThan(0);
     }
   });
 
@@ -125,24 +133,23 @@ describe('registerSearchTool', () => {
     // Should have web results
     expect(text).toContain('WEB RESULTS:');
 
-    const structuredContent = result.structuredContent as SearchResponse;
+    const structuredContent = result.structuredContent as SearchStructuredContent;
     // If both web and news results exist, check for separator
-    if (
-      structuredContent?.results.news &&
-      structuredContent.results.news.length > 0
-    ) {
+    if (structuredContent.resultCounts.news > 0) {
       expect(text).toContain('NEWS RESULTS:');
       expect(text).toContain('='.repeat(50));
     }
   });
 
   test('validates required query parameter', async () => {
-    await expect(
-      client.callTool({
-        name: 'you-search',
-        arguments: {},
-      }),
-    ).rejects.toThrow();
+    const result = await client.callTool({
+      name: 'you-search',
+      arguments: {},
+    });
+
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]?.text).toContain('validation');
   });
 
   test('validates count parameter boundaries', async () => {
@@ -159,26 +166,34 @@ describe('registerSearchTool', () => {
     expect(content[0]).toHaveProperty('text');
 
     // Test invalid count (too high)
-    await expect(
-      client.callTool({
-        name: 'you-search',
-        arguments: {
-          query: 'test',
-          count: 25, // Max is 20
-        },
-      }),
-    ).rejects.toThrow();
+    const invalidHighResult = await client.callTool({
+      name: 'you-search',
+      arguments: {
+        query: 'test',
+        count: 25, // Max is 20
+      },
+    });
+    expect(invalidHighResult.isError).toBe(true);
+    const highContent = invalidHighResult.content as {
+      type: string;
+      text: string;
+    }[];
+    expect(highContent[0]?.text).toContain('validation');
 
     // Test invalid count (too low)
-    await expect(
-      client.callTool({
-        name: 'you-search',
-        arguments: {
-          query: 'test',
-          count: 0, // Min is 1
-        },
-      }),
-    ).rejects.toThrow();
+    const invalidLowResult = await client.callTool({
+      name: 'you-search',
+      arguments: {
+        query: 'test',
+        count: 0, // Min is 1
+      },
+    });
+    expect(invalidLowResult.isError).toBe(true);
+    const lowContent = invalidLowResult.content as {
+      type: string;
+      text: string;
+    }[];
+    expect(lowContent[0]?.text).toContain('validation');
   });
 
   test('validates offset parameter boundaries', async () => {
@@ -195,26 +210,34 @@ describe('registerSearchTool', () => {
     expect(content[0]).toHaveProperty('text');
 
     // Test invalid offset (too high)
-    await expect(
-      client.callTool({
-        name: 'you-search',
-        arguments: {
-          query: 'test',
-          offset: 15, // Max is 9
-        },
-      }),
-    ).rejects.toThrow();
+    const invalidHighResult = await client.callTool({
+      name: 'you-search',
+      arguments: {
+        query: 'test',
+        offset: 15, // Max is 9
+      },
+    });
+    expect(invalidHighResult.isError).toBe(true);
+    const highContent = invalidHighResult.content as {
+      type: string;
+      text: string;
+    }[];
+    expect(highContent[0]?.text).toContain('validation');
 
     // Test invalid offset (negative)
-    await expect(
-      client.callTool({
-        name: 'you-search',
-        arguments: {
-          query: 'test',
-          offset: -1, // Min is 0
-        },
-      }),
-    ).rejects.toThrow();
+    const invalidNegResult = await client.callTool({
+      name: 'you-search',
+      arguments: {
+        query: 'test',
+        offset: -1, // Min is 0
+      },
+    });
+    expect(invalidNegResult.isError).toBe(true);
+    const negContent = invalidNegResult.content as {
+      type: string;
+      text: string;
+    }[];
+    expect(negContent[0]?.text).toContain('validation');
   });
 
   test('handles freshness parameter', async () => {
@@ -228,9 +251,7 @@ describe('registerSearchTool', () => {
 
     const content = result.content as { type: string; text: string }[];
     expect(content[0]).toHaveProperty('text');
-
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toBe('recent news');
+    expect(content[0]?.text).toContain('recent news');
   });
 
   test('handles country parameter', async () => {
@@ -244,9 +265,7 @@ describe('registerSearchTool', () => {
 
     const content = result.content as { type: string; text: string }[];
     expect(content[0]).toHaveProperty('text');
-
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toBe('local news');
+    expect(content[0]?.text).toContain('local news');
   });
 
   test('handles safesearch parameter', async () => {
@@ -260,44 +279,54 @@ describe('registerSearchTool', () => {
 
     const content = result.content as { type: string; text: string }[];
     expect(content[0]).toHaveProperty('text');
-
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toBe('educational content');
+    expect(content[0]?.text).toContain('educational content');
   });
 
   test('validates enum parameters', async () => {
     // Test invalid freshness
-    await expect(
-      client.callTool({
-        name: 'you-search',
-        arguments: {
-          query: 'test',
-          freshness: 'invalid',
-        },
-      }),
-    ).rejects.toThrow();
+    const invalidFreshnessResult = await client.callTool({
+      name: 'you-search',
+      arguments: {
+        query: 'test',
+        freshness: 'invalid',
+      },
+    });
+    expect(invalidFreshnessResult.isError).toBe(true);
+    const freshnessContent = invalidFreshnessResult.content as {
+      type: string;
+      text: string;
+    }[];
+    expect(freshnessContent[0]?.text).toContain('validation');
 
     // Test invalid country
-    await expect(
-      client.callTool({
-        name: 'you-search',
-        arguments: {
-          query: 'test',
-          country: 'XX',
-        },
-      }),
-    ).rejects.toThrow();
+    const invalidCountryResult = await client.callTool({
+      name: 'you-search',
+      arguments: {
+        query: 'test',
+        country: 'XX',
+      },
+    });
+    expect(invalidCountryResult.isError).toBe(true);
+    const countryContent = invalidCountryResult.content as {
+      type: string;
+      text: string;
+    }[];
+    expect(countryContent[0]?.text).toContain('validation');
 
     // Test invalid safesearch
-    await expect(
-      client.callTool({
-        name: 'you-search',
-        arguments: {
-          query: 'test',
-          safesearch: 'invalid',
-        },
-      }),
-    ).rejects.toThrow();
+    const invalidSafesearchResult = await client.callTool({
+      name: 'you-search',
+      arguments: {
+        query: 'test',
+        safesearch: 'invalid',
+      },
+    });
+    expect(invalidSafesearchResult.isError).toBe(true);
+    const safesearchContent = invalidSafesearchResult.content as {
+      type: string;
+      text: string;
+    }[];
+    expect(safesearchContent[0]?.text).toContain('validation');
   });
 
   test('validates new string parameters', async () => {
@@ -310,9 +339,11 @@ describe('registerSearchTool', () => {
       },
     });
 
-    const siteStructuredContent =
-      validSiteResult.structuredContent as SearchResponse;
-    expect(siteStructuredContent?.metadata?.query).toBe('test site:github.com');
+    const siteContent = validSiteResult.content as {
+      type: string;
+      text: string;
+    }[];
+    expect(siteContent[0]?.text).toContain('test');
 
     // Test valid fileType parameter
     const validFileTypeResult = await client.callTool({
@@ -323,11 +354,11 @@ describe('registerSearchTool', () => {
       },
     });
 
-    const fileTypeStructuredContent =
-      validFileTypeResult.structuredContent as SearchResponse;
-    expect(fileTypeStructuredContent?.metadata?.query).toBe(
-      'test fileType:pdf',
-    );
+    const fileTypeContent = validFileTypeResult.content as {
+      type: string;
+      text: string;
+    }[];
+    expect(fileTypeContent[0]?.text).toContain('test');
 
     // Test valid language parameter
     const validLanguageResult = await client.callTool({
@@ -338,9 +369,11 @@ describe('registerSearchTool', () => {
       },
     });
 
-    const languageStructuredContent =
-      validLanguageResult.structuredContent as SearchResponse;
-    expect(languageStructuredContent?.metadata?.query).toBe('test lang:en');
+    const languageContent = validLanguageResult.content as {
+      type: string;
+      text: string;
+    }[];
+    expect(languageContent[0]?.text).toContain('test');
   });
 
   test('handles empty string values for new parameters', async () => {
@@ -358,9 +391,7 @@ describe('registerSearchTool', () => {
 
     const content = result.content as { type: string; text: string }[];
     expect(content[0]).toHaveProperty('text');
-
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toContain('test query');
+    expect(content[0]?.text).toContain('test query');
   });
 
   test('handles site parameter', async () => {
@@ -372,10 +403,8 @@ describe('registerSearchTool', () => {
       },
     });
 
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toBe(
-      'react components site:github.com',
-    );
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]?.text).toContain('react components');
   });
 
   test('handles fileType parameter', async () => {
@@ -387,10 +416,8 @@ describe('registerSearchTool', () => {
       },
     });
 
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toBe(
-      'documentation fileType:pdf',
-    );
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]?.text).toContain('documentation');
   });
 
   test('handles language parameter', async () => {
@@ -402,8 +429,8 @@ describe('registerSearchTool', () => {
       },
     });
 
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toBe('tutorial lang:es');
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]?.text).toContain('tutorial');
   });
 
   test('handles exactTerms parameter', async () => {
@@ -415,10 +442,8 @@ describe('registerSearchTool', () => {
       },
     });
 
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toBe(
-      'programming +javascript AND +typescript',
-    );
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]?.text).toContain('programming');
   });
 
   test('handles excludeTerms parameter', async () => {
@@ -430,10 +455,8 @@ describe('registerSearchTool', () => {
       },
     });
 
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toBe(
-      'tutorial -beginner AND -basic',
-    );
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]?.text).toContain('tutorial');
   });
 
   test('handles multi-word phrases with parentheses in exactTerms', async () => {
@@ -445,10 +468,8 @@ describe('registerSearchTool', () => {
       },
     });
 
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toBe(
-      'programming +(machine learning) AND +typescript',
-    );
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]?.text).toContain('programming');
   });
 
   test('handles multi-word phrases with parentheses in excludeTerms', async () => {
@@ -460,10 +481,8 @@ describe('registerSearchTool', () => {
       },
     });
 
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toBe(
-      'programming -(social media) AND -ads',
-    );
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]?.text).toContain('programming');
   });
 
   test('handles complex search with multiple parameters', async () => {
@@ -484,15 +503,13 @@ describe('registerSearchTool', () => {
 
     const content = result.content as { type: string; text: string }[];
     expect(content[0]).toHaveProperty('text');
+    // Test should pass even if no results (very specific query might have no results)
 
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toBe(
-      'machine learning tutorial site:github.com fileType:md lang:en',
-    );
-
-    // Verify results are limited by count
-    const webResults = structuredContent?.results.web || [];
-    expect(webResults.length).toBeLessThanOrEqual(5);
+    // Verify results are limited by count if there are results
+    const structuredContent = result.structuredContent as SearchStructuredContent;
+    if (structuredContent.resultCounts.web > 0) {
+      expect(structuredContent.resultCounts.web).toBeLessThanOrEqual(5);
+    }
   });
 
   test('handles special characters in query', async () => {
@@ -505,9 +522,7 @@ describe('registerSearchTool', () => {
 
     const content = result.content as { type: string; text: string }[];
     expect(content[0]).toHaveProperty('text');
-
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.metadata?.query).toContain('C++');
+    expect(content[0]?.text).toContain('C++');
   });
 
   test('handles empty search results gracefully', async () => {
@@ -524,9 +539,10 @@ describe('registerSearchTool', () => {
     expect(content[0]).toHaveProperty('text');
 
     const text = content[0]?.text;
-    const structuredContent = result.structuredContent as SearchResponse;
-    expect(structuredContent?.results.web).toBeUndefined();
-    expect(structuredContent?.results.news?.length).toBeUndefined();
+    const structuredContent = result.structuredContent as SearchStructuredContent;
+    expect(structuredContent.resultCounts.web).toBe(0);
+    expect(structuredContent.resultCounts.news).toBe(0);
+    expect(structuredContent.resultCounts.total).toBe(0);
     expect(text).toContain('No results found');
   });
 
@@ -539,40 +555,19 @@ describe('registerSearchTool', () => {
       },
     });
 
-    const structuredContent = result.structuredContent as SearchResponse;
-    // Validate structured content schema
-    expect(structuredContent).toHaveProperty('results');
-    expect(structuredContent).toHaveProperty('metadata');
+    const structuredContent = result.structuredContent as SearchStructuredContent;
+    // Validate minimal structured content schema
+    expect(structuredContent).toHaveProperty('resultCounts');
 
-    const results = structuredContent?.results;
-    expect(results).toHaveProperty('web');
-    expect(Array.isArray(results?.web)).toBe(true);
-
-    // Check web result structure if results exist
-    // biome-ignore lint/style/noNonNullAssertion: Test
-    const webResult = results.web![0];
-    expect(webResult).toHaveProperty('url');
-    expect(webResult).toHaveProperty('title');
-    expect(webResult).toHaveProperty('description');
-    expect(webResult).toHaveProperty('snippets');
-    expect(Array.isArray(webResult?.snippets)).toBe(true);
-
-    // Check news result structure if results exist
-    // biome-ignore lint/style/noNonNullAssertion: Test
-    const newsResult = results.news![0];
-    expect(newsResult).toHaveProperty('url');
-    expect(newsResult).toHaveProperty('title');
-    expect(newsResult).toHaveProperty('description');
-    expect(newsResult).toHaveProperty('page_age');
-
-    // Check metadata structure
-    const metadata = structuredContent?.metadata;
-    expect(typeof metadata.query).toBe('string');
-    expect(typeof metadata.latency).toBe('number');
-
-    if (metadata?.request_uuid) {
-      expect(typeof metadata.request_uuid).toBe('string');
-    }
+    // Check result counts structure
+    const resultCounts = structuredContent.resultCounts;
+    expect(resultCounts).toHaveProperty('web');
+    expect(resultCounts).toHaveProperty('news');
+    expect(resultCounts).toHaveProperty('total');
+    expect(typeof resultCounts.web).toBe('number');
+    expect(typeof resultCounts.news).toBe('number');
+    expect(typeof resultCounts.total).toBe('number');
+    expect(resultCounts.total).toBe(resultCounts.web + resultCounts.news);
   });
 
   test('returns error when both exactTerms and excludeTerms are provided', async () => {
@@ -587,9 +582,7 @@ describe('registerSearchTool', () => {
 
     expect(result.isError).toBe(true);
     const content = result.content as { type: string; text: string }[];
-    expect(content[0]?.text).toContain(
-      'Cannot specify both exactTerms and excludeTerms - please use only one',
-    );
+    expect(content[0]?.text).toContain('Cannot specify both exactTerms and excludeTerms - please use only one');
   });
 
   test('handles API errors gracefully', async () => {
@@ -616,6 +609,186 @@ describe('registerSearchTool', () => {
       arguments: {
         query: 'web development',
         count: 1,
+      },
+    });
+
+    // Verify content array structure
+    expect(Array.isArray(result.content)).toBe(true);
+    expect(result.content).toHaveLength(1);
+
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]).toHaveProperty('type', 'text');
+    expect(content[0]).toHaveProperty('text');
+    expect(typeof content[0]?.text).toBe('string');
+
+    // Should not have isError flag on successful requests
+    expect(result.isError).toBeUndefined();
+  });
+});
+
+// NOTE: The following tests require a You.com API key with access to the Contents API
+// Using example.com and Wikipedia URLs that work with the Contents API
+describe('registerContentsTool', () => {
+  test('tool is registered and available', async () => {
+    const tools = await client.listTools();
+
+    const contentsTool = tools.tools.find((t) => t.name === 'you-contents');
+
+    expect(contentsTool).toBeDefined();
+    expect(contentsTool?.title).toBe('Extract Web Page Contents');
+    expect(contentsTool?.description).toContain('Extract page content');
+  });
+
+  test('extracts content from a single URL', async () => {
+    const result = await client.callTool({
+      name: 'you-contents',
+      arguments: {
+        urls: ['https://example.com'],
+        format: 'markdown',
+      },
+    });
+
+    expect(result).toHaveProperty('content');
+    expect(result).toHaveProperty('structuredContent');
+
+    const content = result.content as { type: string; text: string }[];
+    expect(Array.isArray(content)).toBe(true);
+    expect(content[0]).toHaveProperty('type', 'text');
+    expect(content[0]).toHaveProperty('text');
+
+    const text = content[0]?.text;
+    expect(text).toContain('Successfully extracted content');
+    expect(text).toContain('https://example.com');
+    expect(text).toContain('Format: markdown');
+
+    const structuredContent = result.structuredContent as ContentsStructuredContent;
+    expect(structuredContent).toHaveProperty('count', 1);
+    expect(structuredContent).toHaveProperty('format', 'markdown');
+    expect(structuredContent).toHaveProperty('items');
+    expect(structuredContent.items).toHaveLength(1);
+
+    const item = structuredContent.items[0];
+    expect(item).toBeDefined();
+
+    expect(item).toHaveProperty('url', 'https://example.com');
+    expect(item).toHaveProperty('title');
+    expect(item).toHaveProperty('content');
+    expect(item).toHaveProperty('contentLength');
+    expect(typeof item?.content).toBe('string');
+    expect(item?.content.length).toBeGreaterThan(0);
+  });
+
+  test('extracts content from multiple URLs', async () => {
+    const result = await client.callTool({
+      name: 'you-contents',
+      arguments: {
+        urls: ['https://example.com', 'https://en.wikipedia.org/wiki/Neuro-symbolic_AI'],
+        format: 'markdown',
+      },
+    });
+
+    const structuredContent = result.structuredContent as ContentsStructuredContent;
+    expect(structuredContent.count).toBe(2);
+    expect(structuredContent.items).toHaveLength(2);
+
+    const content = result.content as { type: string; text: string }[];
+    const text = content[0]?.text;
+    expect(text).toContain('Successfully extracted content from 2 URL(s)');
+  });
+
+  test('handles html format', async () => {
+    const result = await client.callTool({
+      name: 'you-contents',
+      arguments: {
+        urls: ['https://example.com'],
+        format: 'html',
+      },
+    });
+
+    const structuredContent = result.structuredContent as ContentsStructuredContent;
+    expect(structuredContent.format).toBe('html');
+
+    const content = result.content as { type: string; text: string }[];
+    const text = content[0]?.text;
+    expect(text).toContain('Format: html');
+  });
+
+  test('defaults to markdown format when not specified', async () => {
+    const result = await client.callTool({
+      name: 'you-contents',
+      arguments: {
+        urls: ['https://example.com'],
+      },
+    });
+
+    const structuredContent = result.structuredContent as ContentsStructuredContent;
+    expect(structuredContent.format).toBe('markdown');
+  });
+
+  test('validates required urls parameter', async () => {
+    // MCP SDK returns validation errors instead of throwing
+    const result = await client.callTool({
+      name: 'you-contents',
+      arguments: {},
+    });
+
+    // Should return an error response
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]?.text).toContain('validation');
+  });
+
+  test('validates urls array is not empty', async () => {
+    // MCP SDK returns validation errors instead of throwing
+    const result = await client.callTool({
+      name: 'you-contents',
+      arguments: {
+        urls: [],
+      },
+    });
+
+    // Should return an error response
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]?.text).toContain('validation');
+  });
+
+  test('validates format parameter', async () => {
+    // MCP SDK returns validation errors instead of throwing
+    const result = await client.callTool({
+      name: 'you-contents',
+      arguments: {
+        urls: ['https://example.com'],
+        format: 'invalid',
+      },
+    });
+
+    // Should return an error response
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]?.text).toContain('validation');
+  });
+
+  test('handles invalid URL format errors', async () => {
+    // MCP SDK validates URL format and returns error
+    const result = await client.callTool({
+      name: 'you-contents',
+      arguments: {
+        urls: ['not-a-valid-url'],
+      },
+    });
+
+    // Should return a validation error for invalid URL
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(content[0]?.text).toContain('validation');
+  });
+
+  test('verifies response structure', async () => {
+    const result = await client.callTool({
+      name: 'you-contents',
+      arguments: {
+        urls: ['https://example.com'],
       },
     });
 

@@ -1,11 +1,15 @@
 {
   "mcpServers": {
     "ydc-search": {
-      "type": "http",
-      "url": "http://localhost:4000/mcp",
-      "headers": {
-        "Authorization": "Bearer <you.com api key>"
+      "command": "bun",
+      "args": ["dev"],
+      "env": {
+        "YDC_API_KEY": "<you.com api key>"
       }
+    },
+    "linear-server": {
+      "type": "http",
+      "url": "https://mcp.linear.app/mcp"
     }
   }
 }
