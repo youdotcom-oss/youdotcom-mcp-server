@@ -408,53 +408,45 @@ Content extraction from web pages
 
 ### System Overview
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         MCP Clients                              │
-│  (Claude Desktop, Claude Code, Custom Clients)                   │
-└────────────────┬──────────────────────┬─────────────────────────┘
-                 │                      │
-                 │ Stdio               │ HTTP/SSE
-                 │ (Local)             │ (Remote)
-                 ▼                      ▼
-        ┌────────────────┐    ┌─────────────────┐
-        │  src/stdio.ts  │    │  src/http.ts    │
-        │                │    │  (Hono + SSE)   │
-        │  - Process I/O │    │  - /mcp         │
-        │  - JSON-RPC    │    │  - /mcp-health  │
-        └────────┬───────┘    │  - Bearer Auth  │
-                 │            └────────┬─────────┘
-                 │                     │
-                 └──────────┬──────────┘
-                            ▼
-                ┌────────────────────────┐
-                │ src/get-mcp-server.ts  │
-                │   MCP Server Factory   │
-                │                        │
-                │ - registerTool()       │
-                │ - Tool Handlers        │
-                │ - Logging              │
-                └────────┬───────────────┘
-                         │
-        ┌────────────────┼────────────────┐
-        │                │                │
-        ▼                ▼                ▼
-┌───────────────┐ ┌──────────────┐ ┌──────────────┐
-│  you-search   │ │ you-express  │ │ you-contents │
-│               │ │              │ │              │
-│ - Validation  │ │ - Validation │ │ - Validation │
-│ - Query Build │ │ - Transform  │ │ - Multi-URL  │
-│ - Formatting  │ │ - Formatting │ │ - Formatting │
-└──────┬────────┘ └──────┬───────┘ └──────┬───────┘
-       │                 │                 │
-       │   X-API-Key     │   Bearer       │   X-API-Key
-       ▼                 ▼                 ▼
-┌────────────────────────────────────────────────────┐
-│              You.com APIs                          │
-│                                                    │
-│  - Search API      - Agent API    - Contents API  │
-│  (ydc-index.io)    (api.you.com)  (ydc-index.io)  │
-└────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    Clients["MCP Clients
+    (Claude Desktop, Claude Code, Custom Clients)"]
+    
+    Clients -->|"Stdio (Local)"| Stdio["src/stdio.ts
+    - Process I/O
+    - JSON-RPC"]
+    Clients -->|"HTTP/SSE (Remote)"| HTTP["src/http.ts (Hono + SSE)
+    - /mcp
+    - /mcp-health
+    - Bearer Auth"]
+    
+    Stdio --> Server["src/get-mcp-server.ts
+    MCP Server Factory
+    - registerTool()
+    - Tool Handlers
+    - Logging"]
+    HTTP --> Server
+    
+    Server --> Search["you-search
+    - Validation
+    - Query Build
+    - Formatting"]
+    Server --> Express["you-express
+    - Validation
+    - Transform
+    - Formatting"]
+    Server --> Contents["you-contents
+    - Validation
+    - Multi-URL
+    - Formatting"]
+    
+    Search -->|X-API-Key| APIs["You.com APIs
+    - Search API (ydc-index.io)
+    - Agent API (api.you.com)
+    - Contents API (ydc-index.io)"]
+    Express -->|Bearer| APIs
+    Contents -->|X-API-Key| APIs
 ```
 
 ### Request Flow
