@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "ydc-search": {
+    "ydc-server": {
       "command": "bun",
       "args": ["dev"],
       "env": {

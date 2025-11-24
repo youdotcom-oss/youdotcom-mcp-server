@@ -1,6 +1,6 @@
 # You.com MCP Server
 
-A Model Context Protocol (MCP) server that provides web search, AI-powered answers, and content extraction using You.com APIs. Built with Bun runtime for optimal performance and supports multiple transport protocols for compatibility with different MCP clients.
+The You.com MCP Server brings comprehensive web access to your agentic IDE through the [Model Context Protocol](https://modelcontextprotocol.io/). It enables AI assistants to search the web, extract content from URLs, and get AI-powered answers with real-time information directly within your development environment. 
 
 ## Features
 
@@ -39,7 +39,7 @@ Choose your MCP client from the [detailed setup guides](#adding-to-your-mcp-clie
 ```json
 {
   "mcpServers": {
-    "ydc-search": {
+    "ydc-server": {
       "type": "http",
       "url": "https://api.you.com/mcp",
       "headers": { "Authorization": "Bearer <you-api-key>" }
@@ -52,7 +52,7 @@ Choose your MCP client from the [detailed setup guides](#adding-to-your-mcp-clie
 ```json
 {
   "mcpServers": {
-    "ydc-search": {
+    "ydc-server": {
       "command": "npx",
       "args": ["@youdotcom-oss/mcp"],
       "env": { "YDC_API_KEY": "<you-api-key>" }
@@ -86,7 +86,7 @@ Detailed configuration instructions for specific MCP clients. See [Getting Start
 ```json
 {
   "mcpServers": {
-    "ydc-search": {
+    "ydc-server": {
       "type": "http",
       "url": "https://api.you.com/mcp",
       "headers": {
@@ -101,7 +101,7 @@ Detailed configuration instructions for specific MCP clients. See [Getting Start
 ```json
 {
   "mcpServers": {
-    "ydc-search": {
+    "ydc-server": {
       "command": "npx",
       "args": ["@youdotcom-oss/mcp"],
       "env": {
@@ -117,8 +117,7 @@ Detailed configuration instructions for specific MCP clients. See [Getting Start
 
 **Quick Setup:**
 ```bash
-# Add using Claude Code CLI (if available)
-claude mcp add ydc-search npx @youdotcom-oss/mcp
+claude mcp add --transport http ydc-server https://api.you.com/mcp --header "Authorization: Bearer <your-api-key>"
 ```
 
 **Manual Setup:**
@@ -149,11 +148,11 @@ Follow the [Claude Desktop MCP guide](https://docs.anthropic.com/en/docs/build-w
 Edit `~/.codex/config.toml`:
 
 ```toml
-[mcp_servers.ydc-search]
+[mcp_servers.ydc-server]
 command = "npx"
 args = ["@youdotcom-oss/mcp"]
 
-[mcp_servers.ydc-search.env]
+[mcp_servers.ydc-server.env]
 YDC_API_KEY = "<you-api-key>"
 ```
 
@@ -217,7 +216,7 @@ Use [mcp-remote](https://www.npmjs.com/package/mcp-remote) since JetBrains only 
 ```json
 {
   "mcpServers": {
-    "ydc-search": {
+    "ydc-server": {
       "command": "npx",
       "args": ["mcp-remote", "https://api.you.com/mcp", "--header", "Authorization: Bearer ${YDC_API_KEY}"],
       "env": { "YDC_API_KEY": "<you-api-key>" }
@@ -255,7 +254,7 @@ Edit `~/.config/opencode/opencode.json`:
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "ydc-search": {
+    "ydc-server": {
       "type": "local",
       "command": ["npx", "@youdotcom-oss/mcp"],
       "enabled": true,
@@ -270,7 +269,7 @@ Edit `~/.config/opencode/opencode.json`:
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "ydc-search": {
+    "ydc-server": {
       "type": "local",
       "command": ["npx", "mcp-remote", "https://api.you.com/mcp", "--header", "Authorization: Bearer ${YDC_API_KEY}"],
       "enabled": true,
@@ -303,7 +302,7 @@ Edit `~/.config/opencode/opencode.json`:
 **Quick Setup (Command Line):**
 ```bash
 # Add MCP server
-code --add-mcp "{\"name\":\"ydc-search\",\"command\":\"npx\",\"args\":[\"@youdotcom-oss/mcp\"],\"env\":{\"YDC_API_KEY\":\"<you-api-key>\"}}"
+code --add-mcp "{\"name\":\"ydc-server\",\"command\":\"npx\",\"args\":[\"@youdotcom-oss/mcp\"],\"env\":{\"YDC_API_KEY\":\"<you-api-key>\"}}"
 ```
 
 **Manual Setup:**
@@ -321,7 +320,7 @@ Create `mcp.json` file in your workspace (`.vscode/mcp.json`) or user profile us
     }
   ],
   "servers": {
-    "ydc-search": {
+    "ydc-server": {
       "command": "npx",
       "args": ["@youdotcom-oss/mcp"],
       "env": { "YDC_API_KEY": "${input:ydc-api-key}" }
@@ -358,7 +357,7 @@ Add to your Zed `settings.json` using `"context_servers"` instead of `"mcpServer
 ```json
 {
   "context_servers": {
-    "ydc-search": {
+    "ydc-server": {
       "source": "custom",
       "command": "npx",
       "args": ["@youdotcom-oss/mcp"],
@@ -375,7 +374,7 @@ Use [mcp-remote](https://www.npmjs.com/package/mcp-remote) to bridge HTTP to std
 ```json
 {
   "context_servers": {
-    "ydc-search": {
+    "ydc-server": {
       "source": "custom",
       "command": "npx",
       "args": ["mcp-remote", "https://api.you.com/mcp", "--header", "Authorization: Bearer ${YDC_API_KEY}"],
