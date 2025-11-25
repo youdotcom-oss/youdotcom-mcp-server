@@ -4,7 +4,7 @@ import { registerContentsTool } from './contents/register-contents-tool.ts';
 import { registerExpressTool } from './express/register-express-tool.ts';
 import { getMCpServer } from './get-mcp-server.ts';
 import { registerSearchTool } from './search/register-search-tool.ts';
-import { useGetClientVersion } from './shared/shared.utils.ts';
+import { useGetClientVersion } from './shared/use-client-version.ts';
 
 const YDC_API_KEY = process.env.YDC_API_KEY;
 

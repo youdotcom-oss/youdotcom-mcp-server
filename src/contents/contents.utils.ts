@@ -1,4 +1,4 @@
-import { checkResponseForErrors } from '../shared/shared.utils.ts';
+import { checkResponseForErrors } from '../shared/check-response-for-errors.ts';
 import {
   type ContentsApiResponse,
   ContentsApiResponseSchema,

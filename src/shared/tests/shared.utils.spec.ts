@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { useGetClientVersion } from '../shared.utils.ts';
+import { useGetClientVersion } from '../use-client-version.ts';
 
 describe('useGetClientVersion', () => {
   test('returns formatted string with all fields present', () => {

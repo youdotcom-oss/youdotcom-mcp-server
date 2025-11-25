@@ -1,5 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { generateErrorReportLink, getLogger } from '../shared/shared.utils.ts';
+import { generateErrorReportLink } from '../shared/generate-error-report-link.ts';
+import { getLogger } from '../shared/get-logger.ts';
 import { SearchQuerySchema, SearchStructuredContentSchema } from './search.schemas.ts';
 import { fetchSearchResults, formatSearchResults } from './search.utils.ts';
 

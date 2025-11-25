@@ -28,7 +28,7 @@ A Model Context Protocol (MCP) server that provides web search, AI agent, and co
 - **HTTP Server**: Hono v4.10.6 with @hono/mcp for HTTP transport (SSE protocol support)
 - **Validation**: Zod 3.25.76 for schema validation
 - **Testing**: Bun test (built-in test runner)
-- **Code Quality**: Biome 2.3.6 (linter + formatter)
+- **Code Quality**: Biome 2.3.7 (linter + formatter)
 - **Type Checking**: TypeScript 5.9.3
 - **Git Hooks**: lint-staged 16.2.7
 
@@ -48,13 +48,15 @@ bun install                    # Install dependencies
 bun run dev                    # Start stdio server
 bun start                      # Start HTTP server on port 4000
 bun test                       # Run tests
+bun test:coverage              # Run tests with coverage report
+bun test:watch                 # Run tests in watch mode
 bun run check                  # Run all checks (biome + types + package format)
 bun run check:write            # Auto-fix all issues
 ```
 
 ## Code Style
 
-This project uses [Biome](https://biomejs.dev/) for automated code formatting and linting. Most style rules are enforced automatically via git hooks (see `biome.json:55`).
+This project uses [Biome](https://biomejs.dev/) for automated code formatting and linting. Most style rules are enforced automatically via git hooks.
 
 ### Manual Adherence Required
 
@@ -97,6 +99,8 @@ try {
 
 **Logging**: Use `getLogger(mcp)` helper, never console.log
 ```ts
+import { getLogger } from '../shared/get-logger.ts';
+
 const logger = getLogger(mcp);
 await logger({ level: 'info', data: `Operation successful: ${result}` });
 await logger({ level: 'error', data: `Operation failed: ${errorMessage}` });
@@ -166,21 +170,21 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md)
 ### Tool Registration
 
 Use Zod schemas for tool parameter validation. See examples:
-- Search tool: `src/search/register-search-tool.ts:7-47`
-- Express tool: `src/express/register-express-tool.ts:7-35`
-- Contents tool: `src/contents/register-contents-tool.ts:7-45`
+- Search tool: `src/search/register-search-tool.ts:7-86`
+- Express tool: `src/express/register-express-tool.ts:7-66`
+- Contents tool: `src/contents/register-contents-tool.ts:7-89`
 
 ### Error Handling
 
-Always use try/catch with typed error handling (`err: unknown`). See `src/search/search.utils.ts:90-105` for standard pattern.
+Always use try/catch with typed error handling (`err: unknown`). See tool registration files for standard pattern.
 
 ### Logging
 
-Use `getLogger(mcp)` helper, never console.log. See `src/shared/shared.utils.ts:35-40` for implementation.
+Use `getLogger(mcp)` helper, never console.log. See `src/shared/get-logger.ts:8-11` for implementation.
 
 ### Error Reporting
 
-Include mailto links in error logs using `generateErrorReportLink()` helper (`src/shared/shared.utils.ts:75-100`). This creates one-click error reporting with full diagnostic context.
+Include mailto links in error logs using `generateErrorReportLink()` helper (`src/shared/generate-error-report-link.ts:6-37`). This creates one-click error reporting with full diagnostic context.
 
 
 ## Testing
@@ -221,9 +225,11 @@ expect(item).toHaveProperty('url'); // Fails with clear error if undefined
 ### Running Tests
 
 ```bash
-bun test                    # All tests
-bun test --coverage         # With coverage report
-bun test src/search/tests/  # Specific directory
+bun test                       # All tests
+bun test:coverage              # With coverage report
+bun test:watch                 # Run tests in watch mode
+bun test:coverage:watch        # Coverage with watch mode
+bun test src/search/tests/     # Specific directory
 ```
 
 Requires `YDC_API_KEY` environment variable for API tests.
@@ -521,11 +527,24 @@ graph TD
 
 ### Shared Utilities
 
-- `src/shared/shared.utils.ts` - Cross-tool utilities
-  - `useGetClientVersion(mcp)` - Returns a `getUserAgent` function that creates User-Agent strings with MCP client version info
+- `src/shared/use-client-version.ts` - User-Agent generation with MCP client version info
+  - `useGetClientVersion(mcp)` - Returns a `getUserAgent` function for creating User-Agent strings
+- `src/shared/get-logger.ts` - MCP server logging
   - `getLogger(mcp)` - Returns a logging function for MCP server notifications
+- `src/shared/check-response-for-errors.ts` - API response validation
   - `checkResponseForErrors()` - Validates API responses for error fields
-  - `generateErrorReportLink()` - Creates mailto links for error reporting
+- `src/shared/generate-error-report-link.ts` - Error reporting utilities
+  - `generateErrorReportLink()` - Creates mailto links for one-click error reporting
+- `src/shared/format-search-results-text.ts` - Search result formatting
+  - `formatSearchResultsText()` - Formats search results for text display
+
+### Library Export
+
+- `src/main.ts` - Public API export file for library consumers
+  - Exports all schemas from contents, express, and search tools
+  - Exports utility functions from contents, express, and search
+  - Exports shared utilities (checkResponseForErrors, formatSearchResultsText)
+  - Used when consuming this package as a library (not as MCP server)
 
 ### Integration Tests
 
@@ -534,35 +553,132 @@ graph TD
 
 ## Deployment
 
-### Quick Start
+This section covers local development setup, self-hosting options, and production deployment strategies.
+
+### Local development setup
+
+**Prerequisites:**
+- Bun >= 1.2.21 installed
+- You.com API key from [you.com/platform/api-keys](https://you.com/platform/api-keys)
+
+**Quick start:**
 
 ```bash
-# Local development
-git clone <repository-url>
-cd you-mcp-server
+# Clone repository
+git clone https://github.com/youdotcom-oss/youdotcom-mcp-server.git
+cd youdotcom-mcp-server
+
+# Install dependencies
 bun install
-echo "export YDC_API_KEY=your-key" > .env
+
+# Set up environment
+echo "export YDC_API_KEY=your-actual-api-key-here" > .env
 source .env
-bun run dev  # Stdio mode
 
-# HTTP server
-bun start    # Port 4000
+# Start development server (STDIO mode)
+bun run dev
 
-# Docker
-docker build -t youdotcom-mcp-server .
-docker run -d -p 4000:4000 youdotcom-mcp-server
+# Or start HTTP server on port 4000
+bun start
 ```
 
-### Deployment Modes
+**Verify setup:**
+```bash
+# Test STDIO mode
+echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | bun src/stdio.ts
 
-| Mode | Use Case | Command |
-|------|----------|---------|
-| **Stdio Dev** | Local development | `bun run dev` |
-| **Stdio Prod** | MCP client integration | `./bin/stdio.js` |
-| **HTTP** | Web apps, remote clients | `bun start` |
-| **Docker** | Containerized deployment | `docker run ...` |
+# Test HTTP mode (in separate terminal)
+curl http://localhost:4000/mcp-health
+```
 
-For detailed deployment instructions, Docker configuration, and MCP client setup, see README.md.
+### Self-hosting with Docker
+
+**Build and run:**
+
+```bash
+# Build Docker image
+docker build -t youdotcom-mcp-server .
+
+# Run container with API key
+docker run -d \
+  -p 4000:4000 \
+  --name youdotcom-mcp \
+  -e YDC_API_KEY=your-actual-api-key-here \
+  youdotcom-mcp-server
+
+# Check health
+curl http://localhost:4000/mcp-health
+```
+
+**Docker Compose:**
+
+```yaml
+version: '3.8'
+services:
+  youdotcom-mcp:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - YDC_API_KEY=${YDC_API_KEY}
+    restart: unless-stopped
+```
+
+### Deployment modes
+
+| Mode | Use Case | Transport | Command |
+|------|----------|-----------|---------|
+| **STDIO Dev** | Local development and testing | STDIO | `bun run dev` |
+| **STDIO Prod** | MCP client integration (local) | STDIO | `./bin/stdio.js` |
+| **HTTP Dev** | Local HTTP server testing | HTTP/SSE | `bun start` |
+| **HTTP Prod** | Remote clients, web apps, production | HTTP/SSE | `bun run build && bun bin/http` |
+| **Docker** | Containerized deployment | HTTP/SSE | `docker run ...` |
+
+### Production deployment
+
+**Building for production:**
+
+```bash
+# Build optimized STDIO bundle
+bun run build
+
+# Outputs:
+# - bin/stdio.js (compiled STDIO transport)
+# Note: bin/http is an executable script, not compiled
+```
+
+**Running in production:**
+
+```bash
+# Set API key
+export YDC_API_KEY=your-actual-api-key-here
+
+# STDIO mode (for MCP clients)
+node bin/stdio.js
+
+# HTTP mode (for remote access)
+PORT=4000 bun bin/http
+```
+
+**Environment variables:**
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `YDC_API_KEY` | Yes | - | You.com API key |
+| `PORT` | No | 4000 | HTTP server port (HTTP mode only) |
+
+**Production considerations:**
+
+- **Security**: Never expose STDIO mode to external networks
+- **HTTP mode**: Use reverse proxy (nginx, Caddy) with HTTPS in production
+- **Rate limiting**: Consider implementing rate limiting for HTTP endpoints
+- **Monitoring**: Set up health check monitoring on `/mcp-health`
+- **Logging**: MCP server logs to stderr; configure log aggregation as needed
+- **API key rotation**: Restart server after rotating API keys
+
+### MCP client configuration
+
+For connecting MCP clients to your self-hosted server, see the "Adding to your MCP client" section in [README.md](./README.md).
 
 For complete API reference documentation including parameters, response formats, and examples, see [API.md](./docs/API.md).
 
@@ -583,4 +699,4 @@ bun test         # Built-in test runner
 
 See `src/contents/register-contents-tool.ts:1-5` for import examples.
 
-**Build**: See `scripts/build.ts` for Bun.build configuration.
+**Build**: Build configuration is defined in `package.json` scripts. The `bun run build` command compiles `src/stdio.ts` to `bin/stdio.js` for production use.

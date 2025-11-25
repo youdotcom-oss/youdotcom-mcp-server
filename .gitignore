@@ -10,7 +10,7 @@ dist/*
 build/
 *.tsbuildinfo
 bin/stdio.js
-bin/http.js
+
 
 # Environment variables
 .env

@@ -1,4 +1,4 @@
-import * as z from 'zod/v3';
+import * as z from 'zod';
 
 export const ExpressAgentInputSchema = z.object({
   input: z.string().min(1, 'Input is required').describe('Query or prompt'),

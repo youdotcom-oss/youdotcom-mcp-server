@@ -1,4 +1,5 @@
-import { checkResponseForErrors, formatSearchResultsText } from '../shared/shared.utils.ts';
+import { checkResponseForErrors } from '../shared/check-response-for-errors.ts';
+import { formatSearchResultsText } from '../shared/format-search-results-text.ts';
 import { type NewsResult, type SearchQuery, type SearchResponse, SearchResponseSchema } from './search.schemas.ts';
 
 export const fetchSearchResults = async ({
